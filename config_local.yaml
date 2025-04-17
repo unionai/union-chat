@@ -1,0 +1,8 @@
+models:
+  - name: LLama 3.2 3B
+    model_id: llama-3.2-3b-instruct
+    base_url: http://localhost:1234
+  - name: Gemma 3 4B
+    model_id: gemma-3-4b-it
+    base_url: http://localhost:1234
+
