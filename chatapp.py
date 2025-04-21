@@ -1,7 +1,5 @@
-import os
 from dataclasses import dataclass
-from ruamel.yaml import YAML
-from pathlib import Path
+from models import get_config
 
 import streamlit as st
 from openai import OpenAI
@@ -18,33 +16,14 @@ class ClientInfo:
 
 @st.cache_resource
 def load_client_infos():
-    # Load client config from file
-    config_file = os.getenv("CONFIG_FILE")
-    if config_file is None:
-        msg = "CONFIG_FILE must be set"
-        raise RuntimeError(msg)
-
-    with open(config_file) as f:
-        yaml = YAML(typ="safe")
-        config = yaml.load(f)
+    config = get_config()
 
     client_infos = {}
-    for model_config in config["models"]:
-        if "base_url" in model_config:
-            endpoint = model_config["base_url"]
-        elif "base_url_env_var" in model_config:
-            env_var = model_config["base_url_env_var"]
-            endpoint = os.getenv(env_var, "")
-            if endpoint == "":
-                msg = "base_url_env_var is not set"
-                raise RuntimeError(msg)
-        else:
-            msg = "base_url or base_url_end_var must be set"
-            raise RuntimeError(msg)
-
-        client_infos[model_config["name"]] = ClientInfo(
+    for model_config in config.models:
+        endpoint = model_config.endpoint
+        client_infos[model_config.display_name] = ClientInfo(
             client=OpenAI(base_url=f"{endpoint}/v1", api_key="ABC"),
-            model_id=model_config["model_id"],
+            model_id=model_config.model_id,
         )
 
     return client_infos

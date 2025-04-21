@@ -1,0 +1,13 @@
+models:
+  - display_name: Qwen2.5-0.5B-Instruct
+    app_name: qwen25-0-5b
+    model_id: Qwen/Qwen2.5-0.5B-Instruct
+    base_url_end_var: MODEL1_ENDPOINT
+    model_uri: flyte://av0.2/dogfood-gcp/thomasjpfan/development/Qwen2_5-0_5B-Instruct@447aeaf76fcfbd3efbb6aa2d53ed0a75
+    llm_runtime:
+      resources:
+        cpu: 12
+        mem: 24Gi
+        gpu: 1
+      accelerator: nvidia-l4
+      stream_model: true

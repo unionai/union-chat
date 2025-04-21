@@ -1,8 +1,7 @@
 models:
-  - name: LLama 3.2 3B
-    model_id: llama-3.2-3b-instruct
-    base_url: http://localhost:1234
-  - name: Gemma 3 4B
-    model_id: gemma-3-4b-it
-    base_url: http://localhost:1234
-
+  - display_name: Gemma 3 1B
+    model_id: gemma3:1b
+    base_url: http://localhost:11434
+  - display_name: Qwen2.5 Coder 0.5B
+    model_id: qwen2.5-coder:0.5b
+    base_url: http://localhost:11434
