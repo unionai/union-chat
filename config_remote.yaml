@@ -2,12 +2,28 @@ models:
   - display_name: Qwen2.5-0.5B-Instruct
     app_name: qwen25-0-5b
     model_id: Qwen/Qwen2.5-0.5B-Instruct
-    base_url_end_var: MODEL1_ENDPOINT
+    base_url_env_var: ENDPOINT_0
     model_uri: flyte://av0.2/dogfood-gcp/thomasjpfan/development/Qwen2_5-0_5B-Instruct@447aeaf76fcfbd3efbb6aa2d53ed0a75
     llm_runtime:
+      llm_type: VLLM
       resources:
-        cpu: 12
-        mem: 24Gi
+        cpu: 7
+        mem: 25Gi
         gpu: 1
       accelerator: nvidia-l4
       stream_model: true
+
+  - display_name: Phi-3.5-mini-Instruct
+    app_name: phi-3-5-mini-instruct
+    model_id: microsoft/Phi-3.5-mini-instruct
+    base_url_env_var: ENDPOINT_1
+    model_uri: flyte://av0.2/dogfood-gcp/thomasjpfan/development/Phi-3_5-mini-instruct@3145e03a9fd4cdd7cd953c34d9bbf7ad606122ca
+    llm_runtime:
+      llm_type: VLLM
+      resources:
+        cpu: 7
+        mem: 25Gi
+        gpu: 1
+      accelerator: nvidia-l4
+      stream_model: true
+      extra_args: --max-model-len 1024

@@ -9,6 +9,8 @@ class LLMRuntime:
     resources: Resources
     accelerator: Optional[str]
     stream_model: bool
+    llm_type: str
+    extra_args: str = ""
     app_kwargs: dict = field(default_factory=dict)
 
 
@@ -27,7 +29,7 @@ class Model:
     base_url: Optional[str] = None
     base_url_env_var: Optional[str] = None
     llm_runtime: Optional[LLMRuntime] = None
-    cache_runtime: Optional[CacheRuntime] = None
+    cache_runtime: CacheRuntime = field(default_factory=CacheRuntime)
 
     @property
     def endpoint(self) -> str:
@@ -40,7 +42,7 @@ class Model:
                 raise RuntimeError(msg)
             return endpoint
         else:
-            msg = "base_url or base_url_env must be set"
+            msg = "base_url or base_url_env_var must be set"
             raise RuntimeError(msg)
 
 
@@ -50,8 +52,14 @@ class CacheWorkflow:
 
 
 @dataclass
+class StreamlitConfig:
+    resources: Resources = field(default_factory=lambda: Resources(cpu="3", mem="4Gi"))
+
+
+@dataclass
 class LLMConfig:
     models: list[Model]
+    streamlit: StreamlitConfig = field(default_factory=StreamlitConfig)
     cache_workflow: Optional[CacheWorkflow] = None
 
 

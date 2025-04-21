@@ -1,4 +1,5 @@
-from union.app.llm import VLLMApp
+from union.app.llm import VLLMApp, SGLangApp
+from union.app import App, Input
 from union import ImageSpec
 from models import get_config
 from flytekit.extras.accelerators import GPUAccelerator
@@ -7,12 +8,10 @@ from flytekit.extras.accelerators import GPUAccelerator
 config = get_config()
 
 llm_apps = {}
+llm_env_vars = {}
+seen_env_vars = set()
 
-vllm_image = ImageSpec(
-    name="serving-vllm",
-    packages=["union[vllm]==0.1.173"],
-    registry="ghcr.io/unionai-oss",
-)
+vllm_image = "ghcr.io/unionai-oss/serving-vllm:0.1.17"
 
 for model_config in config.models:
     if model_config.llm_runtime is None:
@@ -26,7 +25,13 @@ for model_config in config.models:
     if model_config.app_name is None:
         raise ValueError("app_name must be defined")
 
-    llm = VLLMApp(
+    if model_config.llm_runtime.llm_type == "VLLM":
+        LLMCls = VLLMApp
+
+    else:
+        LLMCls = SGLangApp
+
+    llm = LLMCls(
         name=model_config.app_name,
         container_image=vllm_image,
         requests=model_config.llm_runtime.resources,
@@ -37,4 +42,46 @@ for model_config in config.models:
         stream_model=model_config.llm_runtime.stream_model,
         accelerator=GPUAccelerator(model_config.llm_runtime.accelerator),
         scaledown_after=300,
+        extra_args=model_config.llm_runtime.extra_args,
     )
+    llm_apps[model_config.app_name] = llm
+    if model_config.base_url_env_var is None:
+        raise ValueError("base_url_env_var must be set")
+
+    if model_config.base_url_env_var in seen_env_vars:
+        raise ValueError("base_url_env_bar must be unique")
+
+    seen_env_vars.add(model_config.base_url_env_var)
+    llm_env_vars[model_config.app_name] = model_config.base_url_env_var
+
+streamlit_image = ImageSpec(
+    name="streamlit-chat",
+    packages=[
+        "streamlit==1.44.1",
+        "openai==1.75.0",
+        "mashumaro[yaml]==3.15",
+        "union-runtime==0.1.17",
+        "union==0.1.173",
+    ],
+    registry="ghcr.io/unionai-oss",
+)
+
+streamlit_app = App(
+    name="union-llm-serving",
+    container_image=streamlit_image,
+    inputs=[
+        Input(
+            name=name,
+            value=llm_app.query_endpoint(),
+            env_var=llm_env_vars[name],
+            download=False,
+        )
+        for name, llm_app in llm_apps.items()
+    ],
+    port=8501,
+    args="streamlit run chatapp.py",
+    include=["chatapp.py", "models.py", "config_remote.yaml"],
+    dependencies=list(llm_apps.values()),
+    env={"CONFIG_FILE": "config_remote.yaml"},
+    requests=config.streamlit.resources,
+)

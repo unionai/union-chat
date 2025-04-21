@@ -1,4 +1,5 @@
 version = 1
+revision = 1
 requires-python = "==3.12.8"
 
 [[package]]
@@ -1788,7 +1789,7 @@ wheels = [
 
 [[package]]
 name = "union"
-version = "0.1.173"
+version = "0.1.175"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiofiles" },
@@ -1810,9 +1811,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "unionai-actor", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a9/2d/78f45495bcd373347d15acabc8911d5aaae2d84993002fcd44a1f9621349/union-0.1.173.tar.gz", hash = "sha256:583e2bdf1ada15ac04e48b7d8703d906aea0b99f131597c1de7bd7a63e89c7d8", size = 184631 }
+sdist = { url = "https://files.pythonhosted.org/packages/99/d9/157bdb41f05dc72d3addf2fdd754815400e8b1f2c592a879d03fbf378de5/union-0.1.175.tar.gz", hash = "sha256:fbcd9f1dcd08c3d7da074e30a15c1945ae72493fded97a52c23838730ce97b36", size = 184724 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5c/6a/2e80040aebf68b18340e94cd7b28e7d607b23d851e32bc24945c7b50f594/union-0.1.173-py3-none-any.whl", hash = "sha256:59214d00cef731f344c089680b62bad8daa81248d07af99f347a9614f8c0bf9f", size = 273467 },
+    { url = "https://files.pythonhosted.org/packages/be/bd/174623284fe0bfe37a5d47d587412d5f64e13900a8c407bfc77b75fb3d68/union-0.1.175-py3-none-any.whl", hash = "sha256:9490176d60151835626b199a542287dff42728e81f8cd429ff1f75092bb605e1", size = 273651 },
 ]
 
 [[package]]
