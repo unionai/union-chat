@@ -49,6 +49,13 @@ class Model:
 @dataclass
 class CacheWorkflow:
     secret_key: str
+    chunk_size: int = 8 * 1024 * 1024
+
+
+@dataclass
+class Global:
+    project: str
+    domain: str
 
 
 @dataclass
@@ -61,14 +68,15 @@ class LLMConfig:
     models: list[Model]
     streamlit: StreamlitConfig = field(default_factory=StreamlitConfig)
     cache_workflow: Optional[CacheWorkflow] = None
+    global_config: Optional[Global] = None
 
 
 def get_config() -> LLMConfig:
     from mashumaro.codecs.yaml import YAMLDecoder
 
-    config_file = os.getenv("CONFIG_FILE")
+    config_file = os.getenv("LLM_CONFIG_FILE")
     if config_file is None:
-        msg = "CONFIG_FILE must be set"
+        msg = "LLM_CONFIG_FILE must be set"
         raise RuntimeError(msg)
 
     decoder = YAMLDecoder(LLMConfig)

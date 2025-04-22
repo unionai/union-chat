@@ -27,3 +27,9 @@ models:
       accelerator: nvidia-l4
       stream_model: true
       extra_args: --max-model-len 1024
+cache_workflow:
+  secret_key: thomasjpfan-hugging-face
+
+global:
+  project: thomasjpfan
+  domain: development

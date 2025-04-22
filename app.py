@@ -82,6 +82,6 @@ streamlit_app = App(
     args="streamlit run chatapp.py",
     include=["chatapp.py", "models.py", "config_remote.yaml"],
     dependencies=list(llm_apps.values()),
-    env={"CONFIG_FILE": "config_remote.yaml"},
+    env={"LLM_CONFIG_FILE": "config_remote.yaml"},
     requests=config.streamlit.resources,
 )
