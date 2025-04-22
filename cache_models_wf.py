@@ -96,7 +96,7 @@ def cache_model_from_hf(hf_repo: str, commit: str, chunk_size: int, hf_token_key
 #     return os.getenv("HF_HUB_ENABLE_HF_TRANSFER", "unknown")
 
 # from union import Artifact
-from flytekit import Workflow
+from flytekit import Workflow, Secret
 from models import get_config
 
 
@@ -106,20 +106,39 @@ if __name__ == "__main__":
     if config.global_config is None:
         raise ValueError("global_config must be set")
 
-    imperative_wf = Workflow(name=__name__)
+    cache_workflow = config.cache_workflow
+    if cache_workflow is None:
+        raise ValueError("cache_workflow config must be set")
+
+    imperative_wf = Workflow(name="cache_models_wf")
 
     remote = UnionRemote(
         default_domain=config.global_config.domain,
         default_project=config.global_config.project,
     )
-    imperative_wf.add_workflow_input("x", int)
+    imperative_wf.add_workflow_input("hf_repo", str)
+    imperative_wf.add_workflow_input("hf_token_secret_key", str)
+    imperative_wf.add_workflow_input("chunk_size", int)
 
     # MyArtifact = Artifact(name="sample-artifact")
     # return_type = fun.task_function.__annotations__["return"]
     # fun.task_function.__annotations__["return"] = Annotated[return_type, MyArtifact]
 
-    fun_task = task(container_image=hf_cache_image)(fun.task_function)
-    imperative_wf.add_entity(fun_task, x=imperative_wf.inputs["x"])
+    validate_repo_task = task(
+        container_image=hf_cache_image,
+        secret_requests=[Secret(key=cache_workflow.secret_key)],
+        # requests=cache_workflow.resources,
+        # limits=cache_workflow.resources,
+        # accelerator=cache_workflow.accelerator_obj,
+    )(validate_repo)
+
+    validate_repo_node = imperative_wf.add_entity(
+        validate_repo_task,
+        hf_repo=imperative_wf.inputs["hf_repo"],
+        hf_token_secret_key=imperative_wf.inputs["hf_token_secret_key"],
+    )
+
+    imperative_wf.add_workflow_output("info", validate_repo_node.outputs["o0"])
 
     import os
 
@@ -132,4 +151,12 @@ if __name__ == "__main__":
         ),
     )
 
-    # remote.execute(wf, inputs={"x": 123})
+    execution = remote.execute(
+        wf,
+        inputs={
+            "hf_repo": "microsoft/Phi-3.5-mini-instruct",
+            "hf_token_secret_key": "thomasjpfan-hugging-face",
+            "chunk_size": 8 * 1024 * 1024,
+        },
+    )
+    print(execution.execution_url)

@@ -30,6 +30,6 @@ models:
 cache_workflow:
   secret_key: thomasjpfan-hugging-face
 
-global:
+global_config:
   project: thomasjpfan
   domain: development

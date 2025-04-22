@@ -2,6 +2,7 @@ import os
 from typing import Optional
 from dataclasses import dataclass, field
 from union import Resources
+from flytekit.extras.accelerators import GPUAccelerator
 
 
 @dataclass
@@ -15,12 +16,6 @@ class LLMRuntime:
 
 
 @dataclass
-class CacheRuntime:
-    resources: Resources = field(default_factory=lambda: Resources(cpu="3", mem="4Gi"))
-    accelerator: Optional[str] = None
-
-
-@dataclass
 class Model:
     display_name: str
     model_id: str
@@ -29,7 +24,6 @@ class Model:
     base_url: Optional[str] = None
     base_url_env_var: Optional[str] = None
     llm_runtime: Optional[LLMRuntime] = None
-    cache_runtime: CacheRuntime = field(default_factory=CacheRuntime)
 
     @property
     def endpoint(self) -> str:
@@ -50,6 +44,14 @@ class Model:
 class CacheWorkflow:
     secret_key: str
     chunk_size: int = 8 * 1024 * 1024
+    resources: Resources = field(default_factory=lambda: Resources(cpu="3", mem="4Gi"))
+    accelerator: Optional[str] = None
+
+    @property
+    def accelerator_obj(self) -> Optional[GPUAccelerator]:
+        if self.accelerator is None:
+            return None
+        return GPUAccelerator(self.accelerator)
 
 
 @dataclass
