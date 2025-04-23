@@ -7,12 +7,14 @@ from flytekit.extras.accelerators import GPUAccelerator
 
 @dataclass
 class LLMRuntime:
+    image: str
     resources: Resources
     accelerator: Optional[str]
     stream_model: bool
     llm_type: str
     extra_args: str = ""
     app_kwargs: dict = field(default_factory=dict)
+    env: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -22,23 +24,21 @@ class Model:
     name: Optional[str] = None
     model_uri: Optional[str] = None
     base_url: Optional[str] = None
-    base_url_env_var: Optional[str] = None
     llm_runtime: Optional[LLMRuntime] = None
     cache_version: str = "v1"
 
-    @property
-    def endpoint(self) -> str:
+    def get_endpoint_env_var(self, i: int) -> str:
+        return f"ENDPOINT_{i}"
+
+    def get_endpoint(self, i: int) -> str:
         if self.base_url is not None:
             return self.base_url
-        elif self.base_url_env_var is not None:
-            endpoint = os.getenv(self.base_url_env_var)
-            if endpoint is None:
-                msg = "base_url_end_var is not set"
-                raise RuntimeError(msg)
-            return endpoint
-        else:
-            msg = "base_url or base_url_env_var must be set"
+
+        endpoint = os.getenv(self.get_endpoint_env_var(i))
+        if endpoint is None:
+            msg = "base_url_end_var is not set"
             raise RuntimeError(msg)
+        return endpoint
 
 
 @dataclass
@@ -76,15 +76,19 @@ class LLMConfig:
 
 
 def get_config() -> LLMConfig:
-    from mashumaro.codecs.yaml import YAMLDecoder
-
     config_file = os.getenv("LLM_CONFIG_FILE")
     if config_file is None:
         msg = "LLM_CONFIG_FILE must be set"
         raise RuntimeError(msg)
 
+    return get_config_from_file(config_file)
+
+
+def get_config_from_file(file: str) -> LLMConfig:
+    from mashumaro.codecs.yaml import YAMLDecoder
+
     decoder = YAMLDecoder(LLMConfig)
 
-    with open(config_file) as f:
+    with open(file) as f:
         config = decoder.decode(f.read())
     return config

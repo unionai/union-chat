@@ -2,9 +2,8 @@ models:
   - display_name: Qwen2.5-0.5B-Instruct
     name: qwen25-0-5b
     model_id: Qwen/Qwen2.5-0.5B-Instruct
-    base_url_env_var: ENDPOINT_0
-    model_uri: flyte://av0.2/dogfood-gcp/thomasjpfan/development/qwen25-0-5b@8a3122fef3d6172bb0f0bf52fac7875d
     llm_runtime:
+      image: ghcr.io/unionai-oss/serving-vllm:0.1.17
       llm_type: vllm
       resources:
         cpu: 7
@@ -12,14 +11,15 @@ models:
         gpu: 1
       accelerator: nvidia-l4
       stream_model: true
+      env:
+        VLLM_DISABLE_COMPILE_CACHE: "1"
     cache_version: v1
 
   - display_name: Phi-3.5-mini-Instruct
     name: phi-3-5-mini-instruct
     model_id: microsoft/Phi-3.5-mini-instruct
-    base_url_env_var: ENDPOINT_1
-    model_uri: flyte://av0.2/dogfood-gcp/thomasjpfan/development/phi-3-5-mini-instruct@df280130af3df3345bbd8a1f1e9ba039
     llm_runtime:
+      image: ghcr.io/unionai-oss/serving-sglang:0.1.17
       llm_type: sglang
       resources:
         cpu: 7

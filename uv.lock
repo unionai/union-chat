@@ -1,5 +1,4 @@
 version = 1
-revision = 1
 requires-python = "==3.12.8"
 
 [[package]]
@@ -1816,7 +1815,7 @@ wheels = [
 
 [[package]]
 name = "union"
-version = "0.1.175"
+version = "0.1.179"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiofiles" },
@@ -1838,9 +1837,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "unionai-actor", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/99/d9/157bdb41f05dc72d3addf2fdd754815400e8b1f2c592a879d03fbf378de5/union-0.1.175.tar.gz", hash = "sha256:fbcd9f1dcd08c3d7da074e30a15c1945ae72493fded97a52c23838730ce97b36", size = 184724 }
+sdist = { url = "https://files.pythonhosted.org/packages/a2/65/bf19c35644e043769cbef2a9697a1fc749af04f9615126f27205300e38dc/union-0.1.179.tar.gz", hash = "sha256:0ad42dd738aaf7486811b03a234e22319137a7766ff99b80eabccd4a23977b51", size = 184792 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/be/bd/174623284fe0bfe37a5d47d587412d5f64e13900a8c407bfc77b75fb3d68/union-0.1.175-py3-none-any.whl", hash = "sha256:9490176d60151835626b199a542287dff42728e81f8cd429ff1f75092bb605e1", size = 273651 },
+    { url = "https://files.pythonhosted.org/packages/f1/c1/8631314ce3567bec3dfcf48d330b8112063bc5d1a0d7edc36e96135509ba/union-0.1.179-py3-none-any.whl", hash = "sha256:b46a9511eee8ca16537360f97fffe2ba467f6e7e3e4a9225262fa33e9228ff5e", size = 273890 },
 ]
 
 [[package]]
@@ -1866,10 +1865,10 @@ requires-dist = [
 
 [[package]]
 name = "unionai-actor"
-version = "0.1.7"
+version = "0.1.9"
 source = { registry = "https://pypi.org/simple" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f9/86/b57752d2162b7bb8809512a3ed23c80072da48f4f78bc827af78bdcf5bdf/unionai_actor-0.1.7-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e85cf0e1c6a58aae25dc54a0da68508fddb9cc1905a023e3df2bd65b48eabbdc", size = 1876395 },
+    { url = "https://files.pythonhosted.org/packages/de/3e/cdff9276036d89ff45f039b53806ae1f3fa997f47e3194154d307e95caa0/unionai_actor-0.1.9-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:dbd09062569dd30c7566392a5c90493924a0418af88c481a56196b94cd43b80b", size = 1875176 },
 ]
 
 [[package]]

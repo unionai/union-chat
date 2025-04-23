@@ -1,8 +1,9 @@
 import os
 from flytekit import Cache
 from flytekit import Workflow, Secret
-from models import get_config
+from models import get_config_from_file
 from dataclasses import dataclass
+import click
 from union import (
     task,
     ImageSpec,
@@ -182,9 +183,11 @@ def cache_model_from_hf(
     )
 
 
-if __name__ == "__main__":
-    # Validate config
-    config = get_config()
+@click.command()
+@click.argument("config_file")
+def main(config_file: str):
+    config = get_config_from_file(config_file)
+
     if config.global_config is None:
         raise ValueError("global_config must be set")
 
@@ -249,3 +252,7 @@ if __name__ == "__main__":
 
     execution = remote.execute(wf, inputs=name_to_model_id)
     print(execution.execution_url)
+
+
+if __name__ == "__main__":
+    main()

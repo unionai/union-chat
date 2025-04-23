@@ -19,8 +19,8 @@ def load_client_infos():
     config = get_config()
 
     client_infos = {}
-    for model_config in config.models:
-        endpoint = model_config.endpoint
+    for i, model_config in enumerate(config.models):
+        endpoint = model_config.get_endpoint(i)
         client_infos[model_config.display_name] = ClientInfo(
             client=OpenAI(base_url=f"{endpoint}/v1", api_key="ABC"),
             model_id=model_config.model_id,
