@@ -1,8 +1,7 @@
-from typing import Annotated
-
 import os
 from flytekit import Cache
-from copy import deepcopy
+from flytekit import Workflow, Secret
+from models import get_config
 from dataclasses import dataclass
 from union import (
     task,
@@ -181,17 +180,6 @@ def cache_model_from_hf(
         blob=directory.path,
         model_uri=a.metadata().uri if a else "NA",
     )
-
-
-# @task(container_image=hf_cache_image)
-# def see_hf_hub() -> str:
-#     import os
-
-#     return os.getenv("HF_HUB_ENABLE_HF_TRANSFER", "unknown")
-
-# from union import Artifact
-from flytekit import Workflow, Secret
-from models import get_config
 
 
 if __name__ == "__main__":

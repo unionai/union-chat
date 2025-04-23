@@ -5,7 +5,7 @@ models:
     base_url_env_var: ENDPOINT_0
     model_uri: flyte://av0.2/dogfood-gcp/thomasjpfan/development/qwen25-0-5b@8a3122fef3d6172bb0f0bf52fac7875d
     llm_runtime:
-      llm_type: VLLM
+      llm_type: vllm
       resources:
         cpu: 7
         mem: 25Gi
@@ -20,14 +20,14 @@ models:
     base_url_env_var: ENDPOINT_1
     model_uri: flyte://av0.2/dogfood-gcp/thomasjpfan/development/phi-3-5-mini-instruct@df280130af3df3345bbd8a1f1e9ba039
     llm_runtime:
-      llm_type: VLLM
+      llm_type: sglang
       resources:
         cpu: 7
         mem: 25Gi
         gpu: 1
       accelerator: nvidia-l4
       stream_model: true
-      extra_args: --max-model-len 1024
+      extra_args: --attention-backend triton
     cache_version: v1
 cache_workflow:
   hf_secret_key: thomasjpfan-hugging-face
@@ -36,3 +36,8 @@ cache_workflow:
 global_config:
   project: thomasjpfan
   domain: development
+
+streamlit:
+  resources:
+    cpu: "2"
+    mem: 3Gi

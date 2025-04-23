@@ -3,6 +3,7 @@ from union.app import App, Input
 from union import ImageSpec
 from models import get_config
 from flytekit.extras.accelerators import GPUAccelerator
+from union.remote import UnionRemote
 
 
 config = get_config()
@@ -23,28 +24,31 @@ for model_config in config.models:
     if model_config.name is None:
         raise ValueError("name must be defined")
 
-    if model_config.llm_runtime.llm_type == "VLLM":
+    env = {}
+    llm_type = model_config.llm_runtime.llm_type
+    if llm_type == "vllm":
         LLMCls = VLLMApp
         image = "ghcr.io/unionai-oss/serving-vllm:0.1.17"
+        env["VLLM_DISABLE_COMPILE_CACHE"] = "1"
+        port = 8000
     else:
-        # Add support for SGLang
-        assert False
         LLMCls = SGLangApp
-        # Update to using
-        image = "ghcr.io/unionai-oss/serving-vllm:0.1.17"
+        image = "ghcr.io/unionai-oss/serving-sglang:0.1.17"
+        port = 8080
 
     llm = LLMCls(
-        name=model_config.name,
+        name=f"{model_config.name}-{llm_type}",
         container_image=image,
         requests=model_config.llm_runtime.resources,
         limits=model_config.llm_runtime.resources,
-        port=8080,
+        port=port,
         model_id=model_config.model_id,
         model=model_config.model_uri,
         stream_model=model_config.llm_runtime.stream_model,
         accelerator=GPUAccelerator(model_config.llm_runtime.accelerator),
         scaledown_after=300,
         extra_args=model_config.llm_runtime.extra_args,
+        env=env,
     )
     llm_apps[model_config.name] = llm
     if model_config.base_url_env_var is None:
@@ -69,7 +73,7 @@ streamlit_image = ImageSpec(
 )
 
 streamlit_app = App(
-    name="union-llm-serving",
+    name="union-llm-serving-2",
     container_image=streamlit_image,
     inputs=[
         Input(
@@ -86,4 +90,13 @@ streamlit_app = App(
     dependencies=list(llm_apps.values()),
     env={"LLM_CONFIG_FILE": "config_remote.yaml"},
     requests=config.streamlit.resources,
+    limits=config.streamlit.resources,
 )
+
+if __name__ == "__main__":
+    assert config.global_config is not None
+    remote = UnionRemote(
+        default_domain=config.global_config.domain,
+        default_project=config.global_config.project,
+    )
+    remote.deploy_app(streamlit_app)
