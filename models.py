@@ -19,11 +19,12 @@ class LLMRuntime:
 class Model:
     display_name: str
     model_id: str
-    app_name: Optional[str] = None
+    name: Optional[str] = None
     model_uri: Optional[str] = None
     base_url: Optional[str] = None
     base_url_env_var: Optional[str] = None
     llm_runtime: Optional[LLMRuntime] = None
+    cache_version: str = "v1"
 
     @property
     def endpoint(self) -> str:
@@ -42,7 +43,8 @@ class Model:
 
 @dataclass
 class CacheWorkflow:
-    secret_key: str
+    hf_secret_key: str
+    union_secret_key: str
     chunk_size: int = 8 * 1024 * 1024
     resources: Resources = field(default_factory=lambda: Resources(cpu="3", mem="4Gi"))
     accelerator: Optional[str] = None

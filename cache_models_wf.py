@@ -1,6 +1,18 @@
 from typing import Annotated
-from typing import Optional
-from union import task, ImageSpec, current_context, UnionRemote, FlyteDirectory
+
+import os
+from flytekit import Cache
+from copy import deepcopy
+from dataclasses import dataclass
+from union import (
+    task,
+    ImageSpec,
+    current_context,
+    UnionRemote,
+    FlyteDirectory,
+    Artifact,
+)
+from flytekit.core.context_manager import ExecutionParameters
 from flytekit.tools.fast_registration import FastPackageOptions, CopyFileDetection
 
 hf_cache_image = ImageSpec(
@@ -12,11 +24,11 @@ hf_cache_image = ImageSpec(
 
 
 @task
-def validate_repo(hf_repo: str, hf_token_secret_key: str) -> str:
+def validate_repo(hf_repo: str, hf_secret_key: str) -> str:
     from huggingface_hub import list_repo_commits, repo_exists
 
     ctx = current_context()
-    token = ctx.secrets.get(key=hf_token_secret_key)
+    token = ctx.secrets.get(key=hf_secret_key)
 
     if not repo_exists(hf_repo, token=token):
         raise ValueError(f"Huggingface repo: {hf_repo} does not exist")
@@ -29,8 +41,8 @@ def stream_all_files_to_flytedir(
     repo_id: str,
     commit: str,
     chunk_size: int,
-    token: str | None = None,
-) -> tuple[FlyteDirectory, str | None]:
+    token: str,
+) -> FlyteDirectory:
     """
     TODO we should use hf-transfer for this, but the only option on hf-transfer is to download the files to local disk.
     Stream all files in a Hugging Face Hub repository to a FlyteDirectory.
@@ -43,16 +55,12 @@ def stream_all_files_to_flytedir(
     """
     from huggingface_hub import HfFileSystem
 
-    directory = union.FlyteDirectory.new_remote()
-    card = None
+    directory = FlyteDirectory.new_remote()
 
     hfs = HfFileSystem(token=token)
     for file_details in hfs.ls(repo_id, revision=commit, detail=True):
         f = file_details["name"]
         if f.endswith(".md"):
-            print(f"Reading card from {f}")
-            with hfs.open(f, "r") as res:
-                card = res.read()
             continue
 
         with hfs.open(f, "rb", block_size=0) as res:
@@ -74,19 +82,105 @@ def stream_all_files_to_flytedir(
                     if int(percent_complete) > 0 and int(percent_complete) % 10 == 0:
                         print(f"Completed copying {percent_complete} %...")
         print(f"Copied {f} to {directory.path}")
-    return directory, card
+    return directory
+
+
+def _get_remote(ctx: ExecutionParameters) -> UnionRemote:
+    """
+    Get the remote object for the current execution. This is used to interact with the Union backend.
+    Args:
+        self: flytekit.core.context_manager.ExecutionParameters
+    Returns: UnionRemote
+    """
+    project = ctx.execution_id.project if ctx.execution_id else None
+    domain = ctx.execution_id.domain if ctx.execution_id else None
+    raw_output = ctx.raw_output_prefix
+    return UnionRemote(
+        config=None, project=project, domain=domain, data_upload_location=raw_output
+    )
+
+
+def _emit_artifact(ctx: ExecutionParameters, o: Artifact) -> Artifact:
+    """
+    Emit an artifact to Union. This will create a new artifact with the given name and version and will
+    associate with this execution.
+    If o is None or not an Artifact, this function will do nothing.
+    Args:
+        self: flytekit.core.context_manager.ExecutionParameters
+        o: Artifact
+
+    Raises: Exception if artifact creation fails.
+    """
+    # TODO add node_id to the context.
+    from union.internal.artifacts import artifacts_pb2
+
+    # Emit artifact
+    if "HOSTNAME" in os.environ:
+        hostname = os.environ["HOSTNAME"]
+        try:
+            node_id = hostname.split("-")[1]
+        except Exception:
+            node_id = "n1"
+    else:
+        node_id = "n1"
+
+    o.set_source(
+        artifacts_pb2.ArtifactSource(
+            workflow_execution=ctx.execution_id.to_flyte_idl(),
+            task_id=ctx.task_id.to_flyte_idl(),
+            retry_attempt=int(os.getenv("FLYTE_ATTEMPT_NUMBER", "0")),
+            node_id=node_id,
+        )
+    )
+    remote = _get_remote(ctx)
+    try:
+        return remote.create_artifact(o)
+    except Exception as e:
+        print(f"Failed to create artifact {o}: {e}")
+        return remote.get_artifact(query=o.query().to_flyte_idl())
+
+
+@dataclass
+class ArtifactInfo:
+    artifact_name: str
+    blob: str
+    model_uri: str
 
 
 @task
-def cache_model_from_hf(hf_repo: str, commit: str, chunk_size: int, hf_token_key: str):
+def cache_model_from_hf(
+    hf_repo: str,
+    artifact_name: str,
+    commit: str,
+    chunk_size: int,
+    hf_secret_key: str,
+) -> ArtifactInfo:
     print(
         f"Caching model from huggingface repo: {hf_repo}, commit: {commit}",
         flush=True,
     )
     ctx = current_context()
-    token = ctx.secrets.get(key=hf_token_key)
+    token = ctx.secrets.get(key=hf_secret_key)
 
-    directory, card = stream_all_files_to_flytedir(hf_repo, commit, chunk_size, token)
+    directory = stream_all_files_to_flytedir(hf_repo, commit, chunk_size, token)
+    print(f"Data streamed to {directory.path}")
+
+    o = Artifact(
+        name=artifact_name,
+        python_type=FlyteDirectory,
+        python_val=directory,
+        short_description=f"Model cached from huggingface repo: {hf_repo}, commit: {commit} "
+        f"by execution: {ctx.execution_id}.",
+        project=ctx.execution_id.project if ctx.execution_id else None,
+        domain=ctx.execution_id.domain if ctx.execution_id else None,
+    )
+    print(f"Emitting artifact, {o}")
+    a: Artifact = _emit_artifact(ctx, o)
+    return ArtifactInfo(
+        artifact_name=artifact_name,
+        blob=directory.path,
+        model_uri=a.metadata().uri if a else "NA",
+    )
 
 
 # @task(container_image=hf_cache_image)
@@ -116,31 +210,45 @@ if __name__ == "__main__":
         default_domain=config.global_config.domain,
         default_project=config.global_config.project,
     )
-    imperative_wf.add_workflow_input("hf_repo", str)
-    imperative_wf.add_workflow_input("hf_token_secret_key", str)
-    imperative_wf.add_workflow_input("chunk_size", int)
 
-    # MyArtifact = Artifact(name="sample-artifact")
-    # return_type = fun.task_function.__annotations__["return"]
-    # fun.task_function.__annotations__["return"] = Annotated[return_type, MyArtifact]
+    name_to_model_id = {}
+    for i, model in enumerate(config.models):
+        var_name = f"hf_repo_{i}"
+        name_to_model_id[var_name] = model.model_id
 
-    validate_repo_task = task(
-        container_image=hf_cache_image,
-        secret_requests=[Secret(key=cache_workflow.secret_key)],
-        # requests=cache_workflow.resources,
-        # limits=cache_workflow.resources,
-        # accelerator=cache_workflow.accelerator_obj,
-    )(validate_repo)
+        imperative_wf.add_workflow_input(var_name, str)
 
-    validate_repo_node = imperative_wf.add_entity(
-        validate_repo_task,
-        hf_repo=imperative_wf.inputs["hf_repo"],
-        hf_token_secret_key=imperative_wf.inputs["hf_token_secret_key"],
-    )
+        validate_repo_task = task(
+            container_image=hf_cache_image,
+            secret_requests=[Secret(key=cache_workflow.hf_secret_key)],
+            cache=Cache(version=model.cache_version),
+        )(validate_repo.task_function)
 
-    imperative_wf.add_workflow_output("info", validate_repo_node.outputs["o0"])
+        validate_repo_node = imperative_wf.add_entity(
+            validate_repo_task,
+            hf_repo=imperative_wf.inputs[var_name],
+            hf_secret_key=cache_workflow.hf_secret_key,
+        )
 
-    import os
+        cache_model_from_hf_task = task(
+            container_image=hf_cache_image,
+            secret_requests=[
+                Secret(key=cache_workflow.hf_secret_key),
+                Secret(key=cache_workflow.union_secret_key, env_var="UNION_API_KEY"),
+            ],
+            requests=cache_workflow.resources,
+            limits=cache_workflow.resources,
+            cache=Cache(version=model.cache_version),
+        )(cache_model_from_hf.task_function)
+
+        cache_model_from_hf_node = imperative_wf.add_entity(
+            cache_model_from_hf_task,
+            hf_repo=imperative_wf.inputs[var_name],
+            artifact_name=model.name,
+            hf_secret_key=cache_workflow.hf_secret_key,
+            commit=validate_repo_node.outputs["o0"],
+            chunk_size=cache_workflow.chunk_size,
+        )
 
     wf = remote.register_script(
         imperative_wf,
@@ -151,12 +259,5 @@ if __name__ == "__main__":
         ),
     )
 
-    execution = remote.execute(
-        wf,
-        inputs={
-            "hf_repo": "microsoft/Phi-3.5-mini-instruct",
-            "hf_token_secret_key": "thomasjpfan-hugging-face",
-            "chunk_size": 8 * 1024 * 1024,
-        },
-    )
+    execution = remote.execute(wf, inputs=name_to_model_id)
     print(execution.execution_url)

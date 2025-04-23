@@ -1,9 +1,9 @@
 models:
   - display_name: Qwen2.5-0.5B-Instruct
-    app_name: qwen25-0-5b
+    name: qwen25-0-5b
     model_id: Qwen/Qwen2.5-0.5B-Instruct
     base_url_env_var: ENDPOINT_0
-    model_uri: flyte://av0.2/dogfood-gcp/thomasjpfan/development/Qwen2_5-0_5B-Instruct@447aeaf76fcfbd3efbb6aa2d53ed0a75
+    model_uri: flyte://av0.2/dogfood-gcp/thomasjpfan/development/qwen25-0-5b@8a3122fef3d6172bb0f0bf52fac7875d
     llm_runtime:
       llm_type: VLLM
       resources:
@@ -12,12 +12,13 @@ models:
         gpu: 1
       accelerator: nvidia-l4
       stream_model: true
+    cache_version: v1
 
   - display_name: Phi-3.5-mini-Instruct
-    app_name: phi-3-5-mini-instruct
+    name: phi-3-5-mini-instruct
     model_id: microsoft/Phi-3.5-mini-instruct
     base_url_env_var: ENDPOINT_1
-    model_uri: flyte://av0.2/dogfood-gcp/thomasjpfan/development/Phi-3_5-mini-instruct@3145e03a9fd4cdd7cd953c34d9bbf7ad606122ca
+    model_uri: flyte://av0.2/dogfood-gcp/thomasjpfan/development/phi-3-5-mini-instruct@df280130af3df3345bbd8a1f1e9ba039
     llm_runtime:
       llm_type: VLLM
       resources:
@@ -27,8 +28,10 @@ models:
       accelerator: nvidia-l4
       stream_model: true
       extra_args: --max-model-len 1024
+    cache_version: v1
 cache_workflow:
-  secret_key: thomasjpfan-hugging-face
+  hf_secret_key: thomasjpfan-hugging-face
+  union_secret_key: EAGER_API_KEY
 
 global_config:
   project: thomasjpfan

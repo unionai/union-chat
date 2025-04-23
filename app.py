@@ -22,8 +22,8 @@ for model_config in config.models:
     if model_config.llm_runtime.accelerator is None:
         raise ValueError("accelerator must be set")
 
-    if model_config.app_name is None:
-        raise ValueError("app_name must be defined")
+    if model_config.name is None:
+        raise ValueError("name must be defined")
 
     if model_config.llm_runtime.llm_type == "VLLM":
         LLMCls = VLLMApp
@@ -32,7 +32,7 @@ for model_config in config.models:
         LLMCls = SGLangApp
 
     llm = LLMCls(
-        name=model_config.app_name,
+        name=model_config.name,
         container_image=vllm_image,
         requests=model_config.llm_runtime.resources,
         limits=model_config.llm_runtime.resources,
@@ -44,7 +44,7 @@ for model_config in config.models:
         scaledown_after=300,
         extra_args=model_config.llm_runtime.extra_args,
     )
-    llm_apps[model_config.app_name] = llm
+    llm_apps[model_config.name] = llm
     if model_config.base_url_env_var is None:
         raise ValueError("base_url_env_var must be set")
 
@@ -52,7 +52,7 @@ for model_config in config.models:
         raise ValueError("base_url_env_bar must be unique")
 
     seen_env_vars.add(model_config.base_url_env_var)
-    llm_env_vars[model_config.app_name] = model_config.base_url_env_var
+    llm_env_vars[model_config.name] = model_config.base_url_env_var
 
 streamlit_image = ImageSpec(
     name="streamlit-chat",
