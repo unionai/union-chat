@@ -11,8 +11,6 @@ llm_apps = {}
 llm_env_vars = {}
 seen_env_vars = set()
 
-vllm_image = "ghcr.io/unionai-oss/serving-vllm:0.1.17"
-
 for model_config in config.models:
     if model_config.llm_runtime is None:
         raise ValueError("llm_runtime must not be None")
@@ -27,13 +25,17 @@ for model_config in config.models:
 
     if model_config.llm_runtime.llm_type == "VLLM":
         LLMCls = VLLMApp
-
+        image = "ghcr.io/unionai-oss/serving-vllm:0.1.17"
     else:
+        # Add support for SGLang
+        assert False
         LLMCls = SGLangApp
+        # Update to using
+        image = "ghcr.io/unionai-oss/serving-vllm:0.1.17"
 
     llm = LLMCls(
         name=model_config.name,
-        container_image=vllm_image,
+        container_image=image,
         requests=model_config.llm_runtime.resources,
         limits=model_config.llm_runtime.resources,
         port=8080,
