@@ -5,7 +5,6 @@ from flytekit import Cache
 from flytekit import Workflow, Secret
 from models import get_config_from_file
 from dataclasses import dataclass
-from concurrent.futures import ProcessPoolExecutor
 import click
 from union import (
     task,
@@ -109,10 +108,8 @@ def stream_all_files_to_flytedir(
         chunk_size=chunk_size,
     )
 
-    with ProcessPoolExecutor() as executor:
-        executor.map(
-            stream_file_partial, _yield_files(hfs, repo_id=repo_id, revision=commit)
-        )
+    for file_details in _yield_files(hfs, repo_id=repo_id, revision=commit):
+        stream_file_partial(file_details)
 
     return directory
 
