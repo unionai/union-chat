@@ -45,6 +45,7 @@ class Model:
 class CacheWorkflow:
     hf_secret_key: str
     union_secret_key: str
+    version: Optional[str] = None
     chunk_size: int = 8 * 1024 * 1024
     resources: Resources = field(default_factory=lambda: Resources(cpu="3", mem="4Gi"))
     accelerator: Optional[str] = None

@@ -1,3 +1,4 @@
+from typing import Optional
 from union.app.llm import VLLMApp, SGLangApp
 from union.app import App, Input
 from union import ImageSpec
@@ -10,7 +11,8 @@ import click
 
 @click.command()
 @click.argument("config_file")
-def main(config_file: str):
+@click.option("--model", help="Only deploy a model")
+def main(config_file: str, model: Optional[str]):
     config = get_config_from_file(config_file)
 
     llm_apps = {}
@@ -30,12 +32,12 @@ def main(config_file: str):
             raise ValueError("name must be defined")
 
         if not model_config.model_uri:
-            model = Artifact(name=model_config.name).query(
+            model_artifact = Artifact(name=model_config.name).query(
                 project=config.global_config.project,
                 domain=config.global_config.domain,
             )
         else:
-            model = model_config.model_uri
+            model_artifact = model_config.model_uri
 
         llm_type = model_config.llm_runtime.llm_type
         if llm_type == "vllm":
@@ -52,7 +54,7 @@ def main(config_file: str):
             limits=model_config.llm_runtime.resources,
             port=port,
             model_id=model_config.model_id,
-            model=model,
+            model=model_artifact,
             stream_model=model_config.llm_runtime.stream_model,
             accelerator=GPUAccelerator(model_config.llm_runtime.accelerator),
             scaledown_after=300,
@@ -67,6 +69,15 @@ def main(config_file: str):
 
         seen_env_vars.add(base_url_env_var)
         llm_env_vars[model_config.name] = base_url_env_var
+
+    remote = UnionRemote(
+        default_domain=config.global_config.domain,
+        default_project=config.global_config.project,
+    )
+    if model is not None:
+        print(f"Deploying only {model}")
+        remote.deploy_app(llm_apps[model])
+        return
 
     streamlit_image = ImageSpec(
         name="streamlit-chat",
@@ -101,10 +112,6 @@ def main(config_file: str):
         limits=config.streamlit.resources,
     )
 
-    remote = UnionRemote(
-        default_domain=config.global_config.domain,
-        default_project=config.global_config.project,
-    )
     remote.deploy_app(streamlit_app)
 
 

@@ -467,7 +467,7 @@ wheels = [
 
 [[package]]
 name = "flytekit"
-version = "1.15.3"
+version = "1.15.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "adlfs" },
@@ -507,9 +507,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/25/5a/418bcb00ed7070ede18e40709bf1765728dc1eba71d08afdf44c34f8e5a3/flytekit-1.15.3.tar.gz", hash = "sha256:bffce90f78aa54b9612988c10aa7202a1628259d1bbca4f3f73be8af5ba7f10a", size = 555977 }
+sdist = { url = "https://files.pythonhosted.org/packages/30/91/3d17b8862115f6c426b8b9a32a16f599abffd82d0c8fbab643e406e2171a/flytekit-1.15.4.tar.gz", hash = "sha256:3520c7dcdeafc7f7d7418c1e9dca114f867bf81efb076beeecff37a272e18e0f", size = 556686 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/77/37/3cb80ab9465d2e662c7387f1a6341dc1d4c18497efafae9d05669935cff1/flytekit-1.15.3-py3-none-any.whl", hash = "sha256:13798ec5477a2ef429f75c3f39fd94adfdf73ff0cd5a953b06e7836192276687", size = 656474 },
+    { url = "https://files.pythonhosted.org/packages/50/a6/06499803ba31f1f725d50c874a6a1eb0e782c1c891a6e497e827b0aaa782/flytekit-1.15.4-py3-none-any.whl", hash = "sha256:c0a16cff5bb20b48c49525e974fe55a6885ca19e6f3c535fbe65e9815ffa566b", size = 658043 },
 ]
 
 [[package]]
@@ -1815,7 +1815,7 @@ wheels = [
 
 [[package]]
 name = "union"
-version = "0.1.179"
+version = "0.1.180"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiofiles" },
@@ -1837,9 +1837,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "unionai-actor", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a2/65/bf19c35644e043769cbef2a9697a1fc749af04f9615126f27205300e38dc/union-0.1.179.tar.gz", hash = "sha256:0ad42dd738aaf7486811b03a234e22319137a7766ff99b80eabccd4a23977b51", size = 184792 }
+sdist = { url = "https://files.pythonhosted.org/packages/f6/0e/224ae158bdb50cb5b1eba1ef7c913234cafea75632685306797fd4a03216/union-0.1.180.tar.gz", hash = "sha256:12079754b256d97db90d0fe872f2ed9742bbbfd216c14f8a44240f51382215f4", size = 184827 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f1/c1/8631314ce3567bec3dfcf48d330b8112063bc5d1a0d7edc36e96135509ba/union-0.1.179-py3-none-any.whl", hash = "sha256:b46a9511eee8ca16537360f97fffe2ba467f6e7e3e4a9225262fa33e9228ff5e", size = 273890 },
+    { url = "https://files.pythonhosted.org/packages/38/dc/e0847c2a2abeeeb18a5265a3edc5f58503671722e3edbb01fe90321aab3a/union-0.1.180-py3-none-any.whl", hash = "sha256:f41d04eb7d920c010f5a6bb9f6823366afd263ace3696d82238016e6a19f1d9c", size = 273937 },
 ]
 
 [[package]]
