@@ -289,7 +289,11 @@ def main(config_file: str):
             chunk_size=cache_workflow.chunk_size,
         )
 
-    additional_content = [str(config)]
+    additional_content = [
+        str(config),
+        str(hf_secret.serialize_to_string()),
+        str(union_secret.serialize_to_string()),
+    ] + [str(cache) for cache in caches]
 
     with _patch_version_from_hash(remote, additional_content):
         wf = remote.register_script(
