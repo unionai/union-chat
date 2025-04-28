@@ -1,4 +1,6 @@
 import os
+import hashlib
+import sys
 from contextlib import contextmanager
 from functools import partial
 from typing import Generator
@@ -227,6 +229,21 @@ def _patch_version_from_hash(remote, additional_context: list[str]):
     remote._version_from_hash = _version_from_hash
 
 
+def hash_current_file(config_file: str) -> str:
+    current_file = sys.argv[0]
+
+    import hashlib
+
+    m = hashlib.sha1()
+    with open(current_file, "rb") as f:
+        m.update(f.read())
+
+    with open(config_file, "rb") as f:
+        m.update(f.read())
+
+    return m.hexdigest()
+
+
 @click.command()
 @click.argument("config_file")
 def main(config_file: str):
@@ -289,21 +306,17 @@ def main(config_file: str):
             chunk_size=cache_workflow.chunk_size,
         )
 
-    additional_content = [
-        str(config),
-        str(hf_secret.serialize_to_string()),
-        str(union_secret.serialize_to_string()),
-    ] + [str(cache) for cache in caches]
+    version = hash_current_file(config_file=config_file)
 
-    with _patch_version_from_hash(remote, additional_content):
-        wf = remote.register_script(
-            imperative_wf,
-            source_path=os.getcwd(),
-            fast_package_options=FastPackageOptions(
-                ignores=[],
-                copy_style=CopyFileDetection.LOADED_MODULES,
-            ),
-        )
+    wf = remote.register_script(
+        imperative_wf,
+        source_path=os.getcwd(),
+        version=version,
+        fast_package_options=FastPackageOptions(
+            ignores=[],
+            copy_style=CopyFileDetection.LOADED_MODULES,
+        ),
+    )
 
     execution = remote.execute(wf, inputs=name_to_model_id)
     print(execution.execution_url)
