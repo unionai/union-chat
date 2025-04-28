@@ -1,4 +1,5 @@
 import os
+from contextlib import contextmanager
 from functools import partial
 from typing import Generator
 from flytekit import Cache
@@ -59,7 +60,8 @@ def _stream_file_to_dir(
         ff = directory.new_file(filename)
         copied = 0
         print(
-            f"Copying {name} to {ff.path}, size: {size}. Total chunks: {size // chunk_size}"
+            f"Copying {name} to {ff.path}, size: {size}. Total chunks: {size // chunk_size}",
+            flush=True,
         )
         with ff.open("wb") as sink:
             while True:
@@ -70,8 +72,8 @@ def _stream_file_to_dir(
                     break
                 percent_complete = copied / size * 100
                 if int(percent_complete) > 0 and int(percent_complete) % 10 == 0:
-                    print(f"Completed copying {percent_complete} %...")
-    print(f"Copied {name} to {directory.path}")
+                    print(f"Completed copying {percent_complete} %...", flush=True)
+        print(f"Copied {name} to {ff.path}", flush=True)
 
 
 def stream_all_files_to_flytedir(
@@ -98,7 +100,7 @@ def stream_all_files_to_flytedir(
 
     root_name_detail = hfs.info(repo_id, revision=commit)
     prefix = root_name_detail["name"]
-    prefix_len = len(prefix)
+    prefix_len = len(prefix) + 1
 
     stream_file_partial = partial(
         _stream_file_to_dir,
@@ -212,6 +214,19 @@ def cache_model_from_hf(
     )
 
 
+@contextmanager
+def _patch_version_from_hash(remote, additional_context: list[str]):
+    """Patches _version_from_hash to provide additional context."""
+    _version_from_hash = remote._version_from_hash
+
+    def _patch_version_from_hash(*args, **kwargs):
+        return _version_from_hash(*args, *additional_context, **kwargs)
+
+    remote._version_from_hash = _patch_version_from_hash
+    yield
+    remote._version_from_hash = _version_from_hash
+
+
 @click.command()
 @click.argument("config_file")
 def main(config_file: str):
@@ -231,6 +246,10 @@ def main(config_file: str):
         default_project=config.global_config.project,
     )
 
+    hf_secret = Secret(key=cache_workflow.hf_secret_key)
+    union_secret = Secret(key=cache_workflow.union_secret_key, env_var="UNION_API_KEY")
+    caches = []
+
     name_to_model_id = {}
     for i, model in enumerate(config.models):
         var_name = f"hf_repo_{i}"
@@ -238,10 +257,13 @@ def main(config_file: str):
 
         imperative_wf.add_workflow_input(var_name, str)
 
+        cache = Cache(version=model.cache_version)
+        caches.append(cache)
+
         validate_repo_task = task(
             container_image=hf_cache_image,
-            secret_requests=[Secret(key=cache_workflow.hf_secret_key)],
-            cache=Cache(version=model.cache_version),
+            secret_requests=[hf_secret],
+            cache=cache,
         )(validate_repo.task_function)
 
         validate_repo_node = imperative_wf.add_entity(
@@ -252,13 +274,10 @@ def main(config_file: str):
 
         cache_model_from_hf_task = task(
             container_image=hf_cache_image,
-            secret_requests=[
-                Secret(key=cache_workflow.hf_secret_key),
-                Secret(key=cache_workflow.union_secret_key, env_var="UNION_API_KEY"),
-            ],
+            secret_requests=[hf_secret, union_secret],
             requests=cache_workflow.resources,
             limits=cache_workflow.resources,
-            cache=Cache(version=model.cache_version),
+            cache=cache,
         )(cache_model_from_hf.task_function)
 
         cache_model_from_hf_node = imperative_wf.add_entity(
@@ -270,15 +289,17 @@ def main(config_file: str):
             chunk_size=cache_workflow.chunk_size,
         )
 
-    wf = remote.register_script(
-        imperative_wf,
-        source_path=os.getcwd(),
-        version=cache_workflow.version,
-        fast_package_options=FastPackageOptions(
-            ignores=[],
-            copy_style=CopyFileDetection.LOADED_MODULES,
-        ),
-    )
+    additional_content = [str(config)]
+
+    with _patch_version_from_hash(remote, additional_content):
+        wf = remote.register_script(
+            imperative_wf,
+            source_path=os.getcwd(),
+            fast_package_options=FastPackageOptions(
+                ignores=[],
+                copy_style=CopyFileDetection.LOADED_MODULES,
+            ),
+        )
 
     execution = remote.execute(wf, inputs=name_to_model_id)
     print(execution.execution_url)
