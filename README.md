@@ -23,5 +23,5 @@ ollama pull qwen2.5-coder:0.5b
 3. Run chatapp:
 
 ```bash
-LLM_CONFIG_FILE=config_local.yaml uv run streamlit run chatapp.py
+uv run python deploy_app.py config_local.yaml
 ```
