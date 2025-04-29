@@ -88,7 +88,7 @@ def main(config_file: str, model: Optional[str]):
             "union-runtime==0.1.17",
             "union==0.1.173",
         ],
-        registry="ghcr.io/unionai-oss",
+        builder="union",
     )
 
     streamlit_app = App(

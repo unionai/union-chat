@@ -1,14 +1,43 @@
 # Union LLM Serving
 
+## Setup
+
+Copy and customize the remote configuration:
+
+```bash
+cp config_remote.yaml.template config_remote.yaml
+```
+
+Update the following values:
+
+```yaml
+cache_workflow:
+  hf_secret_key: huggingface-api-key  # update this with the secret key for your huggingface api key
+
+global_config:
+  project: <project_name>  # change the project name here
+  domain: development  # update this to your desired domain
+```
+
 ## Deploying to a Union tenant
 
-1. Install `uv`: https://docs.astral.sh/uv/getting-started/installation/
-2. Cache models: `uv run python cache_models_wf.py config_remote.yaml`
-3. Deploy chatbot endpoint that depends on model: `uv run python deploy_app.py config_remote.yaml`
+Install `uv`: https://docs.astral.sh/uv/getting-started/installation/
+
+Then cache models:
+
+```bash
+uv run python cache_models_wf.py config_remote.yaml
+```
+
+Deploy chatbot endpoint that depends on model:
+
+```bash
+uv run python deploy_app.py config_remote.yaml
+```
 
 ## Adding a New model
 
-Update `config_remote.yaml` with a new model. For new models, you may need to update the VLLM or SGLang image.
+Update `config_remote.yaml` with a new model. For new models, you may need to update the vLLM or SGLang image.
 
 ## Local Development
 

@@ -12,10 +12,10 @@ st.title("Union Serving LLMs")
 class ClientInfo:
     client: OpenAI
     model_id: str
-
+    max_tokens: int | None = None
 
 @st.cache_resource
-def load_client_infos():
+def load_client_infos() -> dict[str, ClientInfo]:
     config = get_config()
 
     client_infos = {}
@@ -24,6 +24,7 @@ def load_client_infos():
         client_infos[model_config.display_name] = ClientInfo(
             client=OpenAI(base_url=f"{endpoint}/v1", api_key="ABC"),
             model_id=model_config.model_id,
+            max_tokens=model_config.max_tokens,
         )
 
     return client_infos
@@ -74,6 +75,7 @@ if prompt := st.chat_input("What is on your mind?"):
                 for m in st.session_state.messages
             ],
             stream=True,
+            max_tokens=client_info.max_tokens,
         )
         response = st.write_stream(stream)
     st.session_state.messages.append({"role": "assistant", "content": response})

@@ -26,6 +26,7 @@ class Model:
     base_url: Optional[str] = None
     llm_runtime: Optional[LLMRuntime] = None
     cache_version: str = "v1"
+    max_tokens: Optional[int] = None
 
     def get_endpoint_env_var(self, i: int) -> str:
         return f"ENDPOINT_{i}"
@@ -44,7 +45,6 @@ class Model:
 @dataclass
 class CacheWorkflow:
     hf_secret_key: str
-    union_secret_key: str
     chunk_size: int = 8 * 1024 * 1024
     resources: Resources = field(default_factory=lambda: Resources(cpu="3", mem="4Gi"))
     accelerator: Optional[str] = None
