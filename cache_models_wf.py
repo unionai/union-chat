@@ -1,7 +1,7 @@
 import os
+
 import hashlib
 import sys
-from contextlib import contextmanager
 from functools import partial
 from typing import Generator
 from flytekit import Cache
@@ -216,23 +216,8 @@ def cache_model_from_hf(
     )
 
 
-@contextmanager
-def _patch_version_from_hash(remote, additional_context: list[str]):
-    """Patches _version_from_hash to provide additional context."""
-    _version_from_hash = remote._version_from_hash
-
-    def _patch_version_from_hash(*args, **kwargs):
-        return _version_from_hash(*args, *additional_context, **kwargs)
-
-    remote._version_from_hash = _patch_version_from_hash
-    yield
-    remote._version_from_hash = _version_from_hash
-
-
 def hash_current_file(config_file: str) -> str:
     current_file = sys.argv[0]
-
-    import hashlib
 
     m = hashlib.sha1()
     with open(current_file, "rb") as f:
