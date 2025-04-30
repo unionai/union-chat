@@ -1,4 +1,5 @@
 version = 1
+revision = 1
 requires-python = "==3.12.8"
 
 [[package]]
@@ -453,16 +454,16 @@ wheels = [
 
 [[package]]
 name = "flyteidl"
-version = "1.15.1"
+version = "1.15.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "googleapis-common-protos" },
     { name = "protobuf" },
     { name = "protoc-gen-openapiv2" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e2/22/3fc44174691db5fb83ae06e79c94876c823b4c868e53c9c50901bedc6f42/flyteidl-1.15.1.tar.gz", hash = "sha256:6b5df2a7ff6dbb3a6d483c3d17a446487139347ebc0fd6919788fd64b1562854", size = 128835 }
+sdist = { url = "https://files.pythonhosted.org/packages/92/6d/252aaa552a21e42a15e642abd2828ccda936eacffcfc2ec7dfad11292d01/flyteidl-1.15.3.tar.gz", hash = "sha256:4c24aebd6b001efd4f65ee64b849ca0b22be7ab4ccd0e92bc247acb41fcc20cf", size = 129334 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/84/85/5771a57ac834ab510310b483fea98403ab75439c0c29ae3e0fdbbbe5d546/flyteidl-1.15.1-py3-none-any.whl", hash = "sha256:f1a37876b820d36e3fc324011adbb35d6e20a9a8a4afa41e01babc5a19d6a1c9", size = 220009 },
+    { url = "https://files.pythonhosted.org/packages/0e/2d/4cbc3e7f8616234ca5fc3f8d3e28deecd4ad9f0ce75593a797abefc1adae/flyteidl-1.15.3-py3-none-any.whl", hash = "sha256:7dca58e85afec5594e029cd4dfd046c9f156d95537051b744ccdc9f18a236467", size = 220503 },
 ]
 
 [[package]]
@@ -1815,7 +1816,7 @@ wheels = [
 
 [[package]]
 name = "union"
-version = "0.1.180"
+version = "0.1.181"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiofiles" },
@@ -1837,9 +1838,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "unionai-actor", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f6/0e/224ae158bdb50cb5b1eba1ef7c913234cafea75632685306797fd4a03216/union-0.1.180.tar.gz", hash = "sha256:12079754b256d97db90d0fe872f2ed9742bbbfd216c14f8a44240f51382215f4", size = 184827 }
+sdist = { url = "https://files.pythonhosted.org/packages/d9/28/9c74a2ab82b2e07d0a0339763ebd9df25cd7427bc27c4b653acbf688ba50/union-0.1.181.tar.gz", hash = "sha256:9457fe1057c985655714886743bd670cd16af6c4671c80d79c411852d9dc7661", size = 186154 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/38/dc/e0847c2a2abeeeb18a5265a3edc5f58503671722e3edbb01fe90321aab3a/union-0.1.180-py3-none-any.whl", hash = "sha256:f41d04eb7d920c010f5a6bb9f6823366afd263ace3696d82238016e6a19f1d9c", size = 273937 },
+    { url = "https://files.pythonhosted.org/packages/f1/cb/30858b10e0b43da1fb9e7d27b898a449470c201c353fdd258be4316b5d96/union-0.1.181-py3-none-any.whl", hash = "sha256:3f9642b2a0bd18943b70dd350af9b31b1baf38b08a7d56d8cb99236901958535", size = 275072 },
 ]
 
 [[package]]
@@ -1860,7 +1861,7 @@ requires-dist = [
     { name = "mashumaro", extras = ["yaml"], specifier = ">=3.15" },
     { name = "openai", specifier = ">=1.75.0" },
     { name = "streamlit", specifier = ">=1.44.1" },
-    { name = "union", specifier = ">=0.1.173" },
+    { name = "union", specifier = ">=0.1.181" },
 ]
 
 [[package]]

@@ -1,3 +1,5 @@
+config_remote.yaml
+
 # Python-generated files
 __pycache__/
 *.py[oc]

@@ -23,7 +23,7 @@ from flytekit.tools.fast_registration import FastPackageOptions, CopyFileDetecti
 hf_cache_image = ImageSpec(
     name="hfhub-cache",
     packages=["union==0.1.176", "huggingface-hub[hf_transfer]==0.30.2"],
-    registry="ghcr.io/unionai-oss",
+    builder="union",
     env={"HF_HUB_ENABLE_HF_TRANSFER": "1"},
 )
 
@@ -249,7 +249,7 @@ def main(config_file: str):
     )
 
     hf_secret = Secret(key=cache_workflow.hf_secret_key)
-    union_secret = Secret(key=cache_workflow.union_secret_key, env_var="UNION_API_KEY")
+    union_secret = Secret(key="EAGER_API_KEY", env_var="UNION_API_KEY")
     caches = []
 
     name_to_model_id = {}
