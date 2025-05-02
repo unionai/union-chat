@@ -1,3 +1,4 @@
+import tomllib
 from dataclasses import dataclass
 from models import get_config
 
@@ -5,8 +6,13 @@ import httpx
 import streamlit as st
 from openai import OpenAI
 
+
+with open("pyproject.toml", "rb") as f:
+    pyproject = tomllib.load(f)
+
 st.set_page_config(page_title="LLM Chat App", page_icon=":robot_face:")
-st.title("Union Chat")
+st.title(f"💬 Union Chat")
+st.write(f"**Version:** :gray-badge[v{pyproject['project']['version']}]")
 
 
 @dataclass
@@ -41,14 +47,17 @@ def clear_chat():
     st.session_state["selected_prewritten_prompt"] = None
 
 
+if "current_model" not in st.session_state:
+    st.session_state["current_model"] = None
 if "messages" not in st.session_state:
     clear_chat()
 if "selected_prewritten_prompt" not in st.session_state:
     st.session_state["selected_prewritten_prompt"] = None
 
 with st.sidebar:
+    st.header(f"💬 Union Chat :gray-badge[v{pyproject['project']['version']}]")
     select_box = st.selectbox(
-        "Model Selection",
+        "Select a model",
         list(client_infos),
         key="model_selection",
         on_change=clear_chat,
@@ -62,11 +71,9 @@ with st.sidebar:
 
 client_info = client_infos[select_box]
 
-with st.spinner(f"Loading model {select_box}"):
-    result = httpx.get(f"{client_info.endpoint}")
-    assert result.status_code == 200
-
-st.markdown(f"#### Selected model: {select_box}")
+with st.container(border=True):
+    st.markdown(f"##### 🤖 Current model: **{client_info.model_id}**")
+    st.markdown("*:gray[Generated content may be inaccurate or false.]*")
 
 placeholder = st.empty()
 
@@ -76,14 +83,14 @@ def on_select(*args, **kwargs):
 # Select from prewritten prompts
 if not st.session_state["selected_prewritten_prompt"]:
     selection = placeholder.pills(
-        "Ask me anything in the text box below, or select a prewritten prompt",
+        "Examples",
         options=[
             "How do I write a file in Python? Be concise.",
             "Write a Haiku about a happy cat",
             "Format the following data into json - name: John Doe, age: 30",
             "What is the capital of Peru?",
             "Translate the following to Spanish: 'Hello, how are you?'",
-            "What is 4 * 2?",
+            "What is 4 * 2 - 1?",
         ],
         key="prewritten-prompt-selection",
         on_change=on_select,
@@ -98,6 +105,7 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 input = st.chat_input("What is on your mind?")
+
 
 if input:
     prompt = input

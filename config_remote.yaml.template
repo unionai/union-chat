@@ -42,4 +42,20 @@ models:
       stream_model: true
       extra_args: --attention-backend triton
     cache_version: v1
-    max_tokens: 10000
+    max_tokens: null
+
+  - display_name: Llama3.2 3B
+    name: llama-3-2-3b
+    model_id: meta-llama/Llama-3.2-3B
+    llm_runtime:
+      image: ghcr.io/unionai-oss/serving-sglang:0.1.17
+      llm_type: sglang
+      resources:
+        cpu: 7
+        mem: 25Gi
+        gpu: 1
+      accelerator: nvidia-l4
+      stream_model: true
+      extra_args: --attention-backend triton
+    cache_version: v1
+    max_tokens: null

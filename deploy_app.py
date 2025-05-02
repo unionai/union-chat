@@ -47,6 +47,7 @@ def main(config_file: str, model: Optional[str]):
             LLMCls = SGLangApp
             port = 8080
 
+        extra_args = " ".join([model_config.llm_runtime.extra_args, "--api-key ABC"])
         llm = LLMCls(
             name=f"{model_config.name}-{llm_type}",
             container_image=model_config.llm_runtime.image,
@@ -58,8 +59,10 @@ def main(config_file: str, model: Optional[str]):
             stream_model=model_config.llm_runtime.stream_model,
             accelerator=GPUAccelerator(model_config.llm_runtime.accelerator),
             scaledown_after=300,
-            extra_args=model_config.llm_runtime.extra_args,
+            extra_args=extra_args,
             env=model_config.llm_runtime.env,
+            # we'll authenticate not via Union's auth, but via the API key
+            requires_auth=False,
         )
         llm_apps[model_config.name] = llm
         base_url_env_var = model_config.get_endpoint_env_var(i)
@@ -105,7 +108,7 @@ def main(config_file: str, model: Optional[str]):
         ],
         port=8501,
         args="streamlit run chatapp.py",
-        include=["chatapp.py", "models.py", "config_remote.yaml"],
+        include=["chatapp.py", "models.py", "config_remote.yaml", "pyproject.toml"],
         dependencies=list(llm_apps.values()),
         env={"LLM_CONFIG_FILE": "config_remote.yaml"},
         requests=config.streamlit.resources,
