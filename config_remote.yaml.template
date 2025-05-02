@@ -16,9 +16,9 @@ models:
     base_url: http://localhost:11434
     local: true
 
-  - display_name: Qwen2.5-0.5B-Instruct
-    name: qwen25-0-5b
-    model_id: Qwen/Qwen2.5-0.5B-Instruct
+  - display_name: Qwen2.5-1.5B
+    name: qwen2-5-1-5b
+    model_id: Qwen/Qwen2.5-1.5B
     llm_runtime:
       image: ghcr.io/unionai-oss/serving-vllm:0.1.17
       llm_type: vllm
@@ -28,14 +28,15 @@ models:
         gpu: 1
       accelerator: nvidia-l4
       stream_model: true
+      scaledown_after: 300
       env:
         VLLM_DISABLE_COMPILE_CACHE: "1"
-    cache_version: v1
+    cache_version: v3
     max_tokens: null
 
-  - display_name: Phi-3.5-mini-Instruct
-    name: phi-3-5-mini-instruct
-    model_id: microsoft/Phi-3.5-mini-instruct
+  - display_name: Gemma-3-1b-it
+    name: gemma-3-1b-it
+    model_id: google/gemma-3-1b-it
     llm_runtime:
       image: ghcr.io/unionai-oss/serving-sglang:0.1.17
       llm_type: sglang
@@ -45,22 +46,7 @@ models:
         gpu: 1
       accelerator: nvidia-l4
       stream_model: true
-      extra_args: --attention-backend triton
-    cache_version: v1
-    max_tokens: null
-
-  - display_name: Llama3.2 3B
-    name: llama-3-2-3b
-    model_id: meta-llama/Llama-3.2-3B
-    llm_runtime:
-      image: ghcr.io/unionai-oss/serving-sglang:0.1.17
-      llm_type: sglang
-      resources:
-        cpu: 7
-        mem: 25Gi
-        gpu: 1
-      accelerator: nvidia-l4
-      stream_model: true
-      extra_args: --attention-backend triton
-    cache_version: v1
+      scaledown_after: 300
+      extra_args: --attention-backend flashinfer
+    cache_version: v3
     max_tokens: null

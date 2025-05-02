@@ -60,7 +60,7 @@ def main(config_file: str, model: Optional[str]):
             min_replicas=model_config.llm_runtime.min_replicas,
             stream_model=model_config.llm_runtime.stream_model,
             accelerator=GPUAccelerator(model_config.llm_runtime.accelerator),
-            scaledown_after=300,
+            scaledown_after=model_config.llm_runtime.scaledown_after,
             extra_args=extra_args,
             env=model_config.llm_runtime.env,
             # we'll authenticate not via Union's auth, but via the API key
@@ -114,8 +114,17 @@ def main(config_file: str, model: Optional[str]):
             for name, llm_app in llm_apps.items()
         ],
         port=8501,
-        include=["chatapp.py", "models.py", "config_remote.yaml", "pyproject.toml"],
+        include=[
+            "chatapp.py",
+            "app_utils.py",
+            "models.py",
+            "config_remote.yaml",
+            "pyproject.toml",
+        ],
+        min_replicas=1,
+        max_replicas=3,
         args="ollama serve & sleep 2 && ollama pull qwen2.5:0.5b && streamlit run chatapp.py",
+        # args="streamlit run chatapp.py",
         dependencies=list(llm_apps.values()),
         env={"LLM_CONFIG_FILE": "config_remote.yaml"},
         requests=config.streamlit.resources,

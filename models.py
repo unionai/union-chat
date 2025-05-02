@@ -11,6 +11,7 @@ class LLMRuntime:
     resources: Resources
     stream_model: bool
     llm_type: str
+    scaledown_after: int = 300
     accelerator: Optional[str] = None
     extra_args: str = ""
     app_kwargs: dict = field(default_factory=dict)

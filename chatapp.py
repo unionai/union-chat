@@ -1,15 +1,24 @@
+import asyncio
 import tomllib
+import logging
+
 from dataclasses import dataclass
 from models import get_config
+from app_utils import wake_up_endpoints
 
-import httpx
 import streamlit as st
 from openai import OpenAI
+
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 with open("pyproject.toml", "rb") as f:
     pyproject = tomllib.load(f)
 
+
+logger.info("Starting app")
 st.set_page_config(page_title="LLM Chat App", page_icon=":robot_face:")
 st.title(f"💬 Union Chat")
 st.write(f"**Version:** :gray-badge[v{pyproject['project']['version']}]")
@@ -21,26 +30,38 @@ class ClientInfo:
     model_id: str
     endpoint: str
     max_tokens: int | None = None
+    local: bool = False
+
 
 @st.cache_resource
 def load_client_infos() -> dict[str, ClientInfo]:
     config = get_config()
 
     client_infos = {}
+    remote_endpoints, headers = [], []
     for i, model_config in enumerate(config.models):
         endpoint = model_config.get_endpoint(i)
-        api_key = "ollama" if model_config.local else "ABC"
+        if model_config.local:
+            api_key = "ollama"
+        else:
+            api_key = "ABC"
+            remote_endpoints.append(endpoint)
+            headers.append({"Authorization": f"Bearer {api_key}"})
+
         client_infos[model_config.display_name] = ClientInfo(
             client=OpenAI(base_url=f"{endpoint}/v1", api_key=api_key),
             model_id=model_config.model_id,
             endpoint=endpoint,
             max_tokens=model_config.max_tokens,
+            local=model_config.local,
         )
 
-    return client_infos
+    return client_infos, remote_endpoints, headers
 
 
-client_infos = load_client_infos()
+client_infos, remote_endpoints, headers = load_client_infos()
+logger.info("Waking up endpoints")
+wake_up_endpoints(remote_endpoints, headers)
 
 
 def clear_chat():
@@ -76,13 +97,18 @@ with st.container(border=True):
     st.markdown(f"##### 🤖 Current model: **{client_info.model_id}**")
     st.markdown("*:gray[Generated content may be inaccurate or false.]*")
 
-placeholder = st.empty()
 
 def on_select(*args, **kwargs):
     st.session_state["selected_prewritten_prompt"] = st.session_state["prewritten-prompt-selection"]
 
+placeholder = st.empty()
+
+input = st.chat_input("What is on your mind?")
+
 # Select from prewritten prompts
-if not st.session_state["selected_prewritten_prompt"]:
+if input:
+    selection = None
+elif st.session_state["selected_prewritten_prompt"] is None:
     selection = placeholder.pills(
         "Examples",
         options=[
@@ -104,9 +130,6 @@ else:
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
-
-input = st.chat_input("What is on your mind?")
-
 
 if input:
     prompt = input

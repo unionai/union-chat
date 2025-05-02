@@ -254,6 +254,8 @@ def main(config_file: str):
 
     name_to_model_id = {}
     for i, model in enumerate(config.models):
+        if model.local:
+            continue
         var_name = f"hf_repo_{i}"
         name_to_model_id[var_name] = model.model_id
 
