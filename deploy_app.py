@@ -22,11 +22,12 @@ def main(config_file: str, model: Optional[str]):
     assert config.global_config is not None
 
     for i, model_config in enumerate(config.models):
+
+        if model_config.local:
+            continue
+
         if model_config.llm_runtime is None:
             raise ValueError("llm_runtime must not be None")
-
-        if model_config.llm_runtime.accelerator is None:
-            raise ValueError("accelerator must be set")
 
         if model_config.name is None:
             raise ValueError("name must be defined")
@@ -56,6 +57,7 @@ def main(config_file: str, model: Optional[str]):
             port=port,
             model_id=model_config.model_id,
             model=model_artifact,
+            min_replicas=model_config.llm_runtime.min_replicas,
             stream_model=model_config.llm_runtime.stream_model,
             accelerator=GPUAccelerator(model_config.llm_runtime.accelerator),
             scaledown_after=300,
@@ -91,6 +93,11 @@ def main(config_file: str, model: Optional[str]):
             "union-runtime==0.1.17",
             "union==0.1.173",
         ],
+        apt_packages=["curl"],
+        commands=[
+            "curl -L https://ollama.com/download/ollama-linux-amd64.tgz -o ollama-linux-amd64.tgz",
+            "tar -C /usr -xzf ollama-linux-amd64.tgz",
+        ],
         builder="union",
     )
 
@@ -107,8 +114,8 @@ def main(config_file: str, model: Optional[str]):
             for name, llm_app in llm_apps.items()
         ],
         port=8501,
-        args="streamlit run chatapp.py",
         include=["chatapp.py", "models.py", "config_remote.yaml", "pyproject.toml"],
+        args="ollama serve & sleep 2 && ollama pull qwen2.5:0.5b && streamlit run chatapp.py",
         dependencies=list(llm_apps.values()),
         env={"LLM_CONFIG_FILE": "config_remote.yaml"},
         requests=config.streamlit.resources,

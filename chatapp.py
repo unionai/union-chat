@@ -29,8 +29,9 @@ def load_client_infos() -> dict[str, ClientInfo]:
     client_infos = {}
     for i, model_config in enumerate(config.models):
         endpoint = model_config.get_endpoint(i)
+        api_key = "ollama" if model_config.local else "ABC"
         client_infos[model_config.display_name] = ClientInfo(
-            client=OpenAI(base_url=f"{endpoint}/v1", api_key="ABC"),
+            client=OpenAI(base_url=f"{endpoint}/v1", api_key=api_key),
             model_id=model_config.model_id,
             endpoint=endpoint,
             max_tokens=model_config.max_tokens,
