@@ -22,6 +22,7 @@ logger.info("Starting app")
 st.set_page_config(page_title="LLM Chat App", page_icon=":robot_face:")
 st.title(f"💬 Union Chat")
 st.write(f"**Version:** :gray-badge[v{pyproject['project']['version']}]")
+st.write("A simple UI to chat with Union-hosted LLMs.")
 
 
 @dataclass
@@ -83,6 +84,41 @@ with st.sidebar:
         list(client_infos),
         key="model_selection",
         on_change=clear_chat,
+    )
+
+    # Add max output tokens control
+    use_custom_max_tokens = st.toggle(
+        "Set custom max output tokens",
+        help="Override the model's default max output tokens"
+    )
+    
+    max_output_tokens = None
+    if use_custom_max_tokens:
+        max_output_tokens = st.number_input(
+            "Max output tokens",
+            min_value=1,
+            max_value=32768,
+            value=2048,
+            step=1,
+            help="Maximum number of tokens to generate in the response"
+        )
+
+    temperature = st.slider(
+        "Temperature",
+        min_value=0.0,
+        max_value=2.0,
+        value=1.0,
+        step=0.01,
+        help="Higher values make the output more random, lower values make it more deterministic"
+    )
+
+    top_p = st.slider(
+        "Top P",
+        min_value=0.01,
+        max_value=1.0,
+        value=1.0,
+        step=0.01,
+        help="Controls diversity via nucleus sampling: 0.5 means half of all likelihood-weighted options are considered"
     )
 
     clear_button = st.button(label="Clear Chat", icon="🗑️")
@@ -148,7 +184,9 @@ if prompt:
                 for m in st.session_state.messages
             ],
             stream=True,
-            max_tokens=client_info.max_tokens,
+            max_tokens=max_output_tokens if max_output_tokens is not None else client_info.max_tokens,
+            temperature=temperature,
+            top_p=top_p,
         )
         response = st.write_stream(stream)
     st.session_state.messages.append({"role": "assistant", "content": response})
