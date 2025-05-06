@@ -5,6 +5,9 @@ from union import Resources
 from flytekit.extras.accelerators import GPUAccelerator
 
 
+PLACEHOLDER_API_KEY = "PLACEHOLDER_API_KEY"
+
+
 @dataclass
 class LLMRuntime:
     image: str
@@ -29,6 +32,7 @@ class Model:
     cache_version: str = "v1"
     max_tokens: Optional[int] = None
     local: bool = False
+    secret_key: Optional[str] = None
 
     def get_endpoint_env_var(self, i: int) -> str:
         return f"ENDPOINT_{i}"

@@ -1,9 +1,9 @@
-import asyncio
 import tomllib
 import logging
+import os
 
 from dataclasses import dataclass
-from models import get_config
+from models import get_config, PLACEHOLDER_API_KEY
 from app_utils import wake_up_endpoints
 
 import streamlit as st
@@ -45,7 +45,7 @@ def load_client_infos() -> dict[str, ClientInfo]:
         if model_config.local:
             api_key = "ollama"
         else:
-            api_key = "ABC"
+            api_key = os.getenv("UNION_ENDPOINT_SECRET", PLACEHOLDER_API_KEY)
             remote_endpoints.append(endpoint)
             headers.append({"Authorization": f"Bearer {api_key}"})
 
@@ -169,24 +169,27 @@ for message in st.session_state.messages:
 
 if input:
     prompt = input
-else:
+elif len(st.session_state.messages) == 0:
     prompt = selection
+else:
+    prompt = None
 
 if prompt:
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user").markdown(prompt)
 
     with st.chat_message("assistant"):
-        stream = client_info.client.chat.completions.create(
-            model=client_info.model_id,
-            messages=[
-                {"role": m["role"], "content": m["content"]}
-                for m in st.session_state.messages
-            ],
-            stream=True,
-            max_tokens=max_output_tokens if max_output_tokens is not None else client_info.max_tokens,
-            temperature=temperature,
-            top_p=top_p,
-        )
+        with st.spinner("Generating response"):
+            stream = client_info.client.chat.completions.create(
+                model=client_info.model_id,
+                messages=[
+                    {"role": m["role"], "content": m["content"]}
+                    for m in st.session_state.messages
+                ],
+                stream=True,
+                max_tokens=max_output_tokens if max_output_tokens is not None else client_info.max_tokens,
+                temperature=temperature,
+                top_p=top_p,
+            )
         response = st.write_stream(stream)
     st.session_state.messages.append({"role": "assistant", "content": response})

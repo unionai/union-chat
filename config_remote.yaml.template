@@ -19,6 +19,7 @@ models:
   - display_name: Qwen2.5-1.5B
     name: qwen2-5-1-5b
     model_id: Qwen/Qwen2.5-1.5B
+    secret_key: "<endpoint_secret_key>"
     llm_runtime:
       image: ghcr.io/unionai-oss/serving-vllm:0.1.17
       llm_type: vllm
@@ -37,6 +38,7 @@ models:
   - display_name: Gemma-3-1b-it
     name: gemma-3-1b-it
     model_id: google/gemma-3-1b-it
+    secret_key: "<endpoint_secret_key>"
     llm_runtime:
       image: ghcr.io/unionai-oss/serving-sglang:0.1.17
       llm_type: sglang
