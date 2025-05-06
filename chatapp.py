@@ -14,17 +14,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-with open("pyproject.toml", "rb") as f:
-    pyproject = tomllib.load(f)
-
-
-logger.info("Starting app")
-st.set_page_config(page_title="LLM Chat App", page_icon=":robot_face:")
-st.title(f"💬 Union Chat")
-st.write(f"**Version:** :gray-badge[v{pyproject['project']['version']}]")
-st.write("A simple UI to chat with Union-hosted LLMs.")
-
-
+# define types
 @dataclass
 class ClientInfo:
     client: OpenAI
@@ -32,6 +22,14 @@ class ClientInfo:
     endpoint: str
     max_tokens: int | None = None
     local: bool = False
+
+
+@dataclass
+class InferenceSettings:
+    model: str
+    max_output_tokens: int | None
+    temperature: float
+    top_p: float
 
 
 @st.cache_resource
@@ -60,9 +58,14 @@ def load_client_infos() -> dict[str, ClientInfo]:
     return client_infos, remote_endpoints, headers
 
 
-client_infos, remote_endpoints, headers = load_client_infos()
-logger.info("Waking up endpoints")
-wake_up_endpoints(remote_endpoints, headers)
+def init_session_state():
+    # initialize session state
+    if "current_model" not in st.session_state:
+        st.session_state["current_model"] = None
+    if "messages" not in st.session_state:
+        clear_chat()
+    if "selected_prewritten_prompt" not in st.session_state:
+        st.session_state["selected_prewritten_prompt"] = None
 
 
 def clear_chat():
@@ -70,16 +73,9 @@ def clear_chat():
     st.session_state["selected_prewritten_prompt"] = None
 
 
-if "current_model" not in st.session_state:
-    st.session_state["current_model"] = None
-if "messages" not in st.session_state:
-    clear_chat()
-if "selected_prewritten_prompt" not in st.session_state:
-    st.session_state["selected_prewritten_prompt"] = None
-
-with st.sidebar:
+def sidebar(client_infos: dict[str, ClientInfo], pyproject: dict) -> InferenceSettings:
     st.header(f"💬 Union Chat :gray-badge[v{pyproject['project']['version']}]")
-    select_box = st.selectbox(
+    model = st.selectbox(
         "Select a model",
         list(client_infos),
         key="model_selection",
@@ -126,55 +122,61 @@ with st.sidebar:
     if clear_button:
         clear_chat()
 
-
-client_info = client_infos[select_box]
-
-with st.container(border=True):
-    st.markdown(f"##### 🤖 Current model: **{client_info.model_id}**")
-    st.markdown("*:gray[Generated content may be inaccurate or false.]*")
+    return InferenceSettings(model, max_output_tokens, temperature, top_p)
 
 
 def on_select(*args, **kwargs):
     st.session_state["selected_prewritten_prompt"] = st.session_state["prewritten-prompt-selection"]
 
-placeholder = st.empty()
 
-input = st.chat_input("What is on your mind?")
+def get_prompt() -> str | None:
+    # chat input and pill selector for prewritten prompts
+    input = st.chat_input("What is on your mind?")
 
-# Select from prewritten prompts
-if input:
-    selection = None
-elif st.session_state["selected_prewritten_prompt"] is None:
-    selection = placeholder.pills(
-        "Examples",
-        options=[
-            "How do I write a file in Python? Be concise.",
-            "Write a Haiku about a happy cat",
-            "Format the following data into json - name: John Doe, age: 30",
-            "What is the capital of Peru?",
-            "Translate the following to Spanish: 'Hello, how are you?'",
-            "What is 4 * 2 - 1?",
-        ],
-        key="prewritten-prompt-selection",
-        on_change=on_select,
-    )
-else:
-    selection = st.session_state["selected_prewritten_prompt"]
+    # Select from prewritten prompts
+    if input:
+        selection = None
+    elif st.session_state["selected_prewritten_prompt"] is None:
+        selection = st.pills(
+            "Examples",
+            options=[
+                "How do I write a file in Python? Be concise.",
+                "Write a Haiku about a happy cat",
+                "Format the following data into json - name: John Doe, age: 30",
+                "What is the capital of Peru?",
+                "Translate the following to Spanish: 'Hello, how are you?'",
+                "What is 4 * 2 - 1?",
+            ],
+            key="prewritten-prompt-selection",
+            on_change=on_select,
+        )
+    else:
+        selection = st.session_state["selected_prewritten_prompt"]
+
+    # get prompt from input or prewritten prompt
+    if input:
+        prompt = input
+    elif len(st.session_state.messages) == 0:
+        prompt = selection
+    else:
+        prompt = None
+
+    return prompt
 
 
-# Display message history
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+def display_messages():
+    for message in st.session_state.messages:
+        st.chat_message(message["role"]).markdown(message["content"])
+        # this is a hack to prevent the message from being displayed twice
+        # https://discuss.streamlit.io/t/ghost-double-text-bug/68765/2
+        st.empty()
 
-if input:
-    prompt = input
-elif len(st.session_state.messages) == 0:
-    prompt = selection
-else:
-    prompt = None
 
-if prompt:
+def display_current_prompt_and_response(
+    prompt: str,
+    client_info: ClientInfo,
+    settings: InferenceSettings,
+):
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user").markdown(prompt)
 
@@ -187,9 +189,56 @@ if prompt:
                     for m in st.session_state.messages
                 ],
                 stream=True,
-                max_tokens=max_output_tokens if max_output_tokens is not None else client_info.max_tokens,
-                temperature=temperature,
-                top_p=top_p,
+                max_tokens=(
+                    settings.max_output_tokens
+                    if settings.max_output_tokens is not None
+                    else client_info.max_tokens
+                ),
+                temperature=settings.temperature,
+                top_p=settings.top_p,
             )
-        response = st.write_stream(stream)
+            response = st.write_stream(stream)
     st.session_state.messages.append({"role": "assistant", "content": response})
+
+
+def main():
+    logger.info("Starting app")
+
+    # load project toml file for the version number
+    with open("pyproject.toml", "rb") as f:
+        pyproject = tomllib.load(f)
+
+    # page config and title
+    st.set_page_config(page_title="LLM Chat App", page_icon=":robot_face:")
+    st.title(f"💬 Union Chat")
+    st.write(f"**Version:** :gray-badge[v{pyproject['project']['version']}]")
+    st.write("A simple UI to chat with Union-hosted LLMs.")
+
+    # load client information
+    client_infos, remote_endpoints, headers = load_client_infos()
+
+    # wake up remote endpoints to offset cold start times
+    logger.info("Waking up endpoints")
+    wake_up_endpoints(remote_endpoints, headers)
+
+    init_session_state()
+
+    with st.sidebar:
+        settings = sidebar(client_infos, pyproject)
+
+    # get selected client from the select box
+    client_info = client_infos[settings.model]
+
+    with st.container(border=True):
+        st.markdown(f"##### 🤖 Current model: **{client_info.model_id}**")
+        st.markdown("*:gray[Generated content may be inaccurate or false. Please verify the accuracy of the output.]*")
+
+    prompt = get_prompt()
+    display_messages()
+
+    if prompt:
+        display_current_prompt_and_response(prompt, client_info, settings)
+
+
+if __name__ == "__main__":
+    main()
