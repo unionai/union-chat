@@ -5,17 +5,21 @@ from union import Resources
 from flytekit.extras.accelerators import GPUAccelerator
 
 
+PLACEHOLDER_API_KEY = "PLACEHOLDER_API_KEY"
+
+
 @dataclass
 class LLMRuntime:
     image: str
     resources: Resources
-    accelerator: Optional[str]
     stream_model: bool
     llm_type: str
+    scaledown_after: int = 300
+    accelerator: Optional[str] = None
     extra_args: str = ""
     app_kwargs: dict = field(default_factory=dict)
     env: dict = field(default_factory=dict)
-
+    min_replicas: int = 0
 
 @dataclass
 class Model:
@@ -27,6 +31,8 @@ class Model:
     llm_runtime: Optional[LLMRuntime] = None
     cache_version: str = "v1"
     max_tokens: Optional[int] = None
+    local: bool = False
+    secret_key: Optional[str] = None
 
     def get_endpoint_env_var(self, i: int) -> str:
         return f"ENDPOINT_{i}"
