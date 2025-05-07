@@ -74,7 +74,7 @@ def clear_chat():
 
 
 def sidebar(client_infos: dict[str, ClientInfo], pyproject: dict) -> InferenceSettings:
-    st.header(f"💬 Union Chat :gray-badge[v{pyproject['project']['version']}]")
+    st.header(f"💬 UnionChat :gray-badge[v{pyproject['project']['version']}]")
     model = st.selectbox(
         "Select a model",
         list(client_infos),
@@ -201,6 +201,107 @@ def display_current_prompt_and_response(
     st.session_state.messages.append({"role": "assistant", "content": response})
 
 
+def _curl_request(client_info: ClientInfo):
+    return f"""
+curl {client_info.client.base_url}chat/completions \\
+    -H "Content-Type: application/json" \\
+    -H "Authorization: Bearer {client_info.client.api_key}" \\
+    -d '{{
+        "model": "{client_info.model_id}",
+        "messages": [
+            {{
+                "role": "system",
+                "content": "You are a helpful assistant."
+            }},
+            {{
+                "role": "user",
+                "content": "Hello!"
+            }}
+        ]
+    }}'
+""".strip()
+
+
+def _python_request(client_info: ClientInfo):
+    return f"""
+from openai import OpenAI
+
+client = OpenAI(
+    base_url = '{client_info.client.base_url}',
+    api_key='{client_info.client.api_key}',
+)
+
+response = client.chat.completions.create(
+  model="{client_info.model_id}",
+  messages=[
+    {{"role": "system", "content": "You are a helpful assistant."}},
+    {{"role": "user", "content": "Who won the world series in 2020?"}},
+    {{"role": "assistant", "content": "The LA Dodgers won in 2020."}},
+    {{"role": "user", "content": "Where was it played?"}}
+  ]
+)
+print(response.choices[0].message.content)
+""".strip()
+
+
+def _javascript_request(client_info: ClientInfo):
+    return f"""
+import OpenAI from 'openai'
+
+const openai = new OpenAI({{
+  baseURL: '{client_info.client.base_url}',
+  apiKey: '{client_info.client.api_key}',
+}})
+
+const completion = await openai.chat.completions.create({{
+  model: '{client_info.model_id}',
+  messages: [{{ role: 'user', content: 'Why is the sky blue?' }}],
+}})
+
+console.log(completion.choices[0].message.content)
+""".strip()
+
+
+def render_model_info(model_info_element, client_info: ClientInfo, prompt: str | None):
+    with model_info_element.container():
+        with st.expander(f"##### 🤖 Current model: **{client_info.model_id}**", expanded=prompt is None):
+            st.markdown("*:gray[Generated content may be inaccurate or false. Please verify the accuracy of the output.]*")
+            col1, col2 = st.columns([.25, 1])
+            with col1:
+                st.button(
+                    "Access via API",
+                    type="secondary",
+                    on_click=show_api_dialog,
+                    kwargs={"client_info": client_info},
+                )
+            with col2:
+                st.button(
+                    "Self-deploy",
+                    type="secondary",
+                    on_click=show_deploy_dialog,
+                    kwargs={"client_info": client_info},
+                )
+
+@st.dialog("Access via API", width="large")
+def show_api_dialog(client_info: ClientInfo):
+    st.write(f"Make requests to the `{client_info.model_id}` model API endpoint:")
+    curl_tab, python_tab, js_tab = st.tabs(["Curl", "Python", "JavaScript"])
+    with curl_tab:
+        st.code(_curl_request(client_info), language="bash")
+    with python_tab:
+        st.code(_python_request(client_info), language="python")
+    with js_tab:
+        st.code(_javascript_request(client_info), language="javascript")
+
+
+@st.dialog("Deploy your own chat UI", width="large")
+def show_deploy_dialog(client_info: ClientInfo):
+    st.write("Deploy your own Union Chat UI on Union BYOC or Serverless.")
+    st.write("Clone the repo:")
+    st.code("git clone https://github.com/unionai/union-llm-serving\ncd union-llm-serving")
+    st.write("Follow the instructions in the [README](https://github.com/unionai/union-llm-serving/blob/main/README.md) to deploy the chat UI.")
+
+
 def main():
     logger.info("Starting app")
 
@@ -209,10 +310,10 @@ def main():
         pyproject = tomllib.load(f)
 
     # page config and title
-    st.set_page_config(page_title="LLM Chat App", page_icon=":robot_face:")
-    st.title(f"💬 Union Chat")
+    st.set_page_config(page_title="UnionChat", page_icon=":robot_face:")
+    st.title(f"💬 UnionChat")
     st.write(f"**Version:** :gray-badge[v{pyproject['project']['version']}]")
-    st.write("A simple UI to chat with Union-hosted LLMs.")
+    st.write("A simple UI to chat with self-hosted LLMs, powered by [Union](https://www.union.ai).")
 
     # load client information
     client_infos, remote_endpoints, headers = load_client_infos()
@@ -229,11 +330,10 @@ def main():
     # get selected client from the select box
     client_info = client_infos[settings.model]
 
-    with st.container(border=True):
-        st.markdown(f"##### 🤖 Current model: **{client_info.model_id}**")
-        st.markdown("*:gray[Generated content may be inaccurate or false. Please verify the accuracy of the output.]*")
-
+    model_info_element = st.empty()
     prompt = get_prompt()
+
+    render_model_info(model_info_element, client_info, prompt)
     display_messages()
 
     if prompt:
