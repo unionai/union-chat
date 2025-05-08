@@ -165,6 +165,7 @@ def main(config_file: str, model: Optional[str]):
         },
         requests=config.streamlit.resources,
         limits=config.streamlit.resources,
+        subdomain=config.streamlit.subdomain,
     )
 
     remote.deploy_app(streamlit_app)

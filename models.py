@@ -84,6 +84,7 @@ class SpecialMessage:
 
 @dataclass
 class StreamlitConfig:
+    subdomain: Optional[str] = None
     resources: Resources = field(default_factory=lambda: Resources(cpu="3", mem="4Gi"))
     show_api_keys: bool = False
     show_api_keys_message: str = ""

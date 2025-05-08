@@ -43,3 +43,7 @@ class OllamaApp(App):
         self.env["OLLAMA_ORIGINS"] = "*"
         self.env["OLLAMA_MODELS"] = "/home/union/.ollama/models"
         super().__post_init__()
+
+
+if __name__ == "__main__":
+    app = OllamaApp(model_id="qwen2.5:0.5b")

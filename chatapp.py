@@ -215,6 +215,8 @@ def display_current_prompt_and_response(
             stream = client_info.client.chat.completions.create(
                 model=client_info.model_id,
                 messages=[
+                    {"role": "system", "content": "You are a helpful assistant who always answers in English."}
+                ] + [
                     {"role": m["role"], "content": m["content"]}
                     for m in st.session_state.messages
                 ],
@@ -343,7 +345,7 @@ def show_deploy_dialog():
     st.write("First, clone the repo:")
     st.code("git clone https://github.com/unionai/union-llm-serving\ncd union-llm-serving")
     st.write("Follow the instructions in the [README](https://github.com/unionai/union-llm-serving/blob/main/README.md) to deploy the chat UI.")
-    st.write("🤔 Need help? [Contact us](https://www.union.ai/consultation)")
+    st.info("🤔 Need help? [Contact us](https://www.union.ai/consultation)")
 
 
 def display_special_message(special_message: SpecialMessage):
