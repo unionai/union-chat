@@ -10,11 +10,11 @@ PLACEHOLDER_API_KEY = "PLACEHOLDER_API_KEY"
 
 @dataclass
 class LLMRuntime:
-    image: str
     resources: Resources
     stream_model: bool
     llm_type: str
     scaledown_after: int = 300
+    image: str | None = None
     accelerator: Optional[str] = None
     extra_args: str = ""
     app_kwargs: dict = field(default_factory=dict)
@@ -36,6 +36,9 @@ class Model:
 
     def get_endpoint_env_var(self, i: int) -> str:
         return f"ENDPOINT_{i}"
+    
+    def get_public_endpoint_env_var(self, i: int) -> str:
+        return f"PUBLIC_ENDPOINT_{i}"
 
     def get_endpoint(self, i: int) -> str:
         if self.base_url is not None:
@@ -43,10 +46,15 @@ class Model:
 
         endpoint = os.getenv(self.get_endpoint_env_var(i))
         if endpoint is None:
-            msg = "base_url_end_var is not set"
+            msg = "base_url_env_var is not set"
             raise RuntimeError(msg)
         return endpoint
-
+    
+    def get_public_endpoint(self, i: int) -> str:
+        endpoint = os.getenv(self.get_public_endpoint_env_var(i))
+        if endpoint is None:
+            msg = "public_endpoint_env_var is not set"
+        return endpoint
 
 @dataclass
 class CacheWorkflow:
@@ -69,8 +77,17 @@ class Global:
 
 
 @dataclass
+class SpecialMessage:
+    title: str
+    body: list[str]
+
+
+@dataclass
 class StreamlitConfig:
     resources: Resources = field(default_factory=lambda: Resources(cpu="3", mem="4Gi"))
+    show_api_keys: bool = False
+    show_api_keys_message: str = ""
+    special_message: Optional[SpecialMessage] = None
 
 
 @dataclass

@@ -3,7 +3,9 @@ import logging
 import os
 
 from dataclasses import dataclass
-from models import get_config, PLACEHOLDER_API_KEY
+from models import get_config, PLACEHOLDER_API_KEY, SpecialMessage
+from streamlit_local_storage import LocalStorage
+
 from app_utils import wake_up_endpoints
 
 import streamlit as st
@@ -13,6 +15,12 @@ from openai import OpenAI
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# set page config
+st.set_page_config(page_title="UnionChat", page_icon=":robot_face:")
+
+
+local_storage = LocalStorage()
+
 
 # define types
 @dataclass
@@ -20,6 +28,7 @@ class ClientInfo:
     client: OpenAI
     model_id: str
     endpoint: str
+    public_endpoint: str
     max_tokens: int | None = None
     local: bool = False
 
@@ -32,15 +41,26 @@ class InferenceSettings:
     top_p: float
 
 
+@dataclass
+class AppConfig:
+    show_api_keys: bool
+    show_api_keys_message: str
+    remote_endpoints: list[str]
+    headers: list[dict[str, str]]
+    client_infos: dict[str, ClientInfo]
+    special_message: SpecialMessage | None
+
 @st.cache_resource
-def load_client_infos() -> dict[str, ClientInfo]:
+def load_app_config() -> AppConfig:
     config = get_config()
 
     client_infos = {}
     remote_endpoints, headers = [], []
     for i, model_config in enumerate(config.models):
         endpoint = model_config.get_endpoint(i)
-        if model_config.local:
+        public_endpoint = model_config.get_public_endpoint(i)
+
+        if model_config.local or model_config.llm_runtime.llm_type == "ollama":
             api_key = "ollama"
         else:
             api_key = os.getenv("UNION_ENDPOINT_SECRET", PLACEHOLDER_API_KEY)
@@ -51,11 +71,19 @@ def load_client_infos() -> dict[str, ClientInfo]:
             client=OpenAI(base_url=f"{endpoint}/v1", api_key=api_key),
             model_id=model_config.model_id,
             endpoint=endpoint,
+            public_endpoint=public_endpoint,
             max_tokens=model_config.max_tokens,
             local=model_config.local,
         )
 
-    return client_infos, remote_endpoints, headers
+    return AppConfig(
+        show_api_keys=config.streamlit.show_api_keys,
+        show_api_keys_message=config.streamlit.show_api_keys_message,
+        remote_endpoints=remote_endpoints,
+        headers=headers,
+        client_infos=client_infos,
+        special_message=config.streamlit.special_message,
+    )
 
 
 def init_session_state():
@@ -66,6 +94,8 @@ def init_session_state():
         clear_chat()
     if "selected_prewritten_prompt" not in st.session_state:
         st.session_state["selected_prewritten_prompt"] = None
+    if local_storage.getItem("special_message_shown") is None:
+        local_storage.setItem("special_message_shown", 0)
 
 
 def clear_chat():
@@ -201,11 +231,12 @@ def display_current_prompt_and_response(
     st.session_state.messages.append({"role": "assistant", "content": response})
 
 
-def _curl_request(client_info: ClientInfo):
+def _curl_request(app_config: AppConfig, inference_settings: InferenceSettings):
+    client_info = app_config.client_infos[inference_settings.model]
     return f"""
-curl {client_info.client.base_url}chat/completions \\
-    -H "Content-Type: application/json" \\
-    -H "Authorization: Bearer {client_info.client.api_key}" \\
+curl {client_info.public_endpoint}/v1/chat/completions \\
+    -H 'Content-Type: application/json' \\
+    -H 'Authorization: Bearer {client_info.client.api_key if app_config.show_api_keys else "xxxxx"}' \\
     -d '{{
         "model": "{client_info.model_id}",
         "messages": [
@@ -222,13 +253,14 @@ curl {client_info.client.base_url}chat/completions \\
 """.strip()
 
 
-def _python_request(client_info: ClientInfo):
+def _python_request(app_config: AppConfig, inference_settings: InferenceSettings):
+    client_info = app_config.client_infos[inference_settings.model]
     return f"""
 from openai import OpenAI
 
 client = OpenAI(
-    base_url = '{client_info.client.base_url}',
-    api_key='{client_info.client.api_key}',
+    base_url = '{client_info.public_endpoint}/v1',
+    api_key='{client_info.client.api_key if app_config.show_api_keys else "xxxxx"}'
 )
 
 response = client.chat.completions.create(
@@ -244,13 +276,14 @@ print(response.choices[0].message.content)
 """.strip()
 
 
-def _javascript_request(client_info: ClientInfo):
+def _javascript_request(app_config: AppConfig, inference_settings: InferenceSettings):
+    client_info = app_config.client_infos[inference_settings.model]
     return f"""
 import OpenAI from 'openai'
 
 const openai = new OpenAI({{
-  baseURL: '{client_info.client.base_url}',
-  apiKey: '{client_info.client.api_key}',
+  baseURL: '{client_info.public_endpoint}/v1',
+  apiKey: '{client_info.client.api_key if app_config.show_api_keys else "xxxxx"}'
 }})
 
 const completion = await openai.chat.completions.create({{
@@ -262,44 +295,70 @@ console.log(completion.choices[0].message.content)
 """.strip()
 
 
-def render_model_info(model_info_element, client_info: ClientInfo, prompt: str | None):
+def render_model_info(
+    model_info_element,
+    app_config: AppConfig,
+    inference_settings: InferenceSettings,
+    prompt: str | None,
+):
+    client_info = app_config.client_infos[inference_settings.model]
     with model_info_element.container():
-        with st.expander(f"##### 🤖 Current model: **{client_info.model_id}**", expanded=prompt is None):
+        with st.expander(
+            f"##### 🤖 Current model: **{client_info.model_id}**",
+            expanded=prompt is None,
+        ):
             st.markdown("*:gray[Generated content may be inaccurate or false. Please verify the accuracy of the output.]*")
             col1, col2 = st.columns([.25, 1])
+
             with col1:
                 st.button(
                     "Access via API",
-                    type="secondary",
                     on_click=show_api_dialog,
-                    kwargs={"client_info": client_info},
+                    kwargs={"app_config": app_config, "inference_settings": inference_settings},
                 )
             with col2:
-                st.button(
-                    "Self-deploy",
-                    type="secondary",
-                    on_click=show_deploy_dialog,
-                    kwargs={"client_info": client_info},
-                )
+                st.button("Self-deploy", on_click=show_deploy_dialog)
+
 
 @st.dialog("Access via API", width="large")
-def show_api_dialog(client_info: ClientInfo):
-    st.write(f"Make requests to the `{client_info.model_id}` model API endpoint:")
+def show_api_dialog(app_config: AppConfig, inference_settings: InferenceSettings):
+    client_info = app_config.client_infos[inference_settings.model]
+    if app_config.show_api_keys_message:
+        st.info(app_config.show_api_keys_message, icon="ℹ️")
+    else:
+        st.write(f"Make requests to the `{client_info.model_id}` model API endpoint:")
+
     curl_tab, python_tab, js_tab = st.tabs(["Curl", "Python", "JavaScript"])
     with curl_tab:
-        st.code(_curl_request(client_info), language="bash")
+        st.code(_curl_request(app_config, inference_settings), language="bash")
     with python_tab:
-        st.code(_python_request(client_info), language="python")
+        st.code(_python_request(app_config, inference_settings), language="python")
     with js_tab:
-        st.code(_javascript_request(client_info), language="javascript")
+        st.code(_javascript_request(app_config, inference_settings), language="javascript")
 
 
 @st.dialog("Deploy your own chat UI", width="large")
-def show_deploy_dialog(client_info: ClientInfo):
+def show_deploy_dialog():
     st.write("Deploy your own Union Chat UI on Union BYOC or Serverless.")
-    st.write("Clone the repo:")
+    st.write("First, clone the repo:")
     st.code("git clone https://github.com/unionai/union-llm-serving\ncd union-llm-serving")
     st.write("Follow the instructions in the [README](https://github.com/unionai/union-llm-serving/blob/main/README.md) to deploy the chat UI.")
+    st.write("🤔 Need help? [Contact us](https://www.union.ai/consultation)")
+
+
+def display_special_message(special_message: SpecialMessage):
+    if (
+        special_message is not None
+        and len(st.session_state.messages) == 2
+        and local_storage.getItem("special_message_shown") == 0
+    ):
+        @st.dialog(special_message.title, width="large")
+        def _show_special_message():
+            for line in special_message.body:
+                st.write(line)
+
+        local_storage.setItem("special_message_shown", 1)
+        _show_special_message()
 
 
 def main():
@@ -309,35 +368,36 @@ def main():
     with open("pyproject.toml", "rb") as f:
         pyproject = tomllib.load(f)
 
-    # page config and title
-    st.set_page_config(page_title="UnionChat", page_icon=":robot_face:")
+    # page title
     st.title(f"💬 UnionChat")
     st.write(f"**Version:** :gray-badge[v{pyproject['project']['version']}]")
     st.write("A simple UI to chat with self-hosted LLMs, powered by [Union](https://www.union.ai).")
 
     # load client information
-    client_infos, remote_endpoints, headers = load_client_infos()
+    app_config = load_app_config()
 
     # wake up remote endpoints to offset cold start times
     logger.info("Waking up endpoints")
-    wake_up_endpoints(remote_endpoints, headers)
-
+    wake_up_endpoints(app_config.remote_endpoints, app_config.headers)
     init_session_state()
 
+    if app_config.special_message:
+        display_special_message(app_config.special_message)
+
     with st.sidebar:
-        settings = sidebar(client_infos, pyproject)
+        inference_settings = sidebar(app_config.client_infos, pyproject)
 
     # get selected client from the select box
-    client_info = client_infos[settings.model]
+    client_info = app_config.client_infos[inference_settings.model]
 
     model_info_element = st.empty()
     prompt = get_prompt()
 
-    render_model_info(model_info_element, client_info, prompt)
+    render_model_info(model_info_element, app_config, inference_settings, prompt)
     display_messages()
 
     if prompt:
-        display_current_prompt_and_response(prompt, client_info, settings)
+        display_current_prompt_and_response(prompt, client_info, inference_settings)
 
 
 if __name__ == "__main__":

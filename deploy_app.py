@@ -1,4 +1,6 @@
+import click
 import union
+
 from typing import Optional
 from union.app.llm import VLLMApp, SGLangApp
 from union.app import App, Input
@@ -7,7 +9,7 @@ from models import get_config_from_file, PLACEHOLDER_API_KEY
 from flytekit.extras.accelerators import GPUAccelerator
 from union.remote import UnionRemote
 from union import Artifact
-import click
+from ollama_app import OllamaApp, ollama_image
 
 
 @click.command()
@@ -39,6 +41,8 @@ def main(config_file: str, model: Optional[str]):
                 project=config.global_config.project,
                 domain=config.global_config.domain,
             )
+        elif llm_type == "ollama":
+            model_artifact = None
         else:
             model_artifact = model_config.model_uri
 
@@ -46,9 +50,17 @@ def main(config_file: str, model: Optional[str]):
         if llm_type == "vllm":
             LLMCls = VLLMApp
             port = 8000
-        else:
+            image = model_config.llm_runtime.image
+        elif llm_type == "sglang":
             LLMCls = SGLangApp
             port = 8080
+            image = model_config.llm_runtime.image
+        elif llm_type == "ollama":
+            LLMCls = OllamaApp
+            port = 11434
+            image = ollama_image
+        else:
+            raise ValueError(f"Unknown LLM type: {llm_type}")
 
         if model_config.secret_key is not None:
             _secret_arg = "UNION_ENDPOINT_SECRET"
@@ -64,9 +76,13 @@ def main(config_file: str, model: Optional[str]):
 
         extra_args = " ".join([model_config.llm_runtime.extra_args, f"--api-key {secret_arg}"])
 
+        kwargs = {}
+        if model_config.llm_runtime.accelerator is not None:
+            kwargs["accelerator"] = GPUAccelerator(model_config.llm_runtime.accelerator)
+
         llm = LLMCls(
             name=f"{model_config.name}-{llm_type}",
-            container_image=model_config.llm_runtime.image,
+            container_image=image,
             requests=model_config.llm_runtime.resources,
             limits=model_config.llm_runtime.resources,
             port=port,
@@ -74,14 +90,15 @@ def main(config_file: str, model: Optional[str]):
             model=model_artifact,
             min_replicas=model_config.llm_runtime.min_replicas,
             stream_model=model_config.llm_runtime.stream_model,
-            accelerator=GPUAccelerator(model_config.llm_runtime.accelerator),
             scaledown_after=model_config.llm_runtime.scaledown_after,
             extra_args=extra_args,
             env=model_config.llm_runtime.env,
             secrets=secrets,
             # we'll authenticate not via Union's auth, but via the --api-key flag
             requires_auth=False,
+            **kwargs,
         )
+
         llm_apps[model_config.name] = llm
         base_url_env_var = model_config.get_endpoint_env_var(i)
 
@@ -99,24 +116,24 @@ def main(config_file: str, model: Optional[str]):
         print(f"Deploying only {model}")
         remote.deploy_app(llm_apps[model])
         return
+    
+    public_url_env_vars = {}
+    for i, app in enumerate(llm_apps.values()):
+        app_idl = remote.deploy_app(app)
+        public_url_env_vars[model_config.get_public_endpoint_env_var(i)] = app_idl.status.ingress.public_url
 
     streamlit_image = ImageSpec(
         name="streamlit-chat",
         packages=[
             "streamlit==1.44.1",
+            "streamlit-local-storage==0.0.25",
             "openai==1.75.0",
             "mashumaro[yaml]==3.15",
             "union-runtime==0.1.18",
             "union==0.1.181",
         ],
-        apt_packages=["curl"],
-        commands=[
-            "curl -L https://ollama.com/download/ollama-linux-amd64.tgz -o ollama-linux-amd64.tgz",
-            "tar -C /usr -xzf ollama-linux-amd64.tgz",
-        ],
         builder="union",
     )
-
     streamlit_app = App(
         name="union-llm-serving-2",
         container_image=streamlit_image,
@@ -140,10 +157,12 @@ def main(config_file: str, model: Optional[str]):
         secrets=app_secrets,
         min_replicas=1,
         max_replicas=3,
-        args="ollama serve & sleep 2 && ollama pull qwen2.5:0.5b && streamlit run chatapp.py",
-        # args="streamlit run chatapp.py",
+        args="streamlit run chatapp.py",
         dependencies=list(llm_apps.values()),
-        env={"LLM_CONFIG_FILE": "config_remote.yaml"},
+        env={
+            "LLM_CONFIG_FILE": "config_remote.yaml",
+            **public_url_env_vars,
+        },
         requests=config.streamlit.resources,
         limits=config.streamlit.resources,
     )

@@ -1,3 +1,10 @@
+streamlit:
+  special_message:
+    title: "This is a special message"
+    body:
+      - "Here's a paragraph about the special message"
+      - "Here's another paragraph about the special message"
+
 models:
   - display_name: Gemma 3 1B
     model_id: gemma3:1b
