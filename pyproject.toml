@@ -8,6 +8,7 @@ dependencies = [
     "httpx>=0.28.1",
     "huggingface-hub>=0.30.2",
     "mashumaro[yaml]>=3.15",
+    "fastmcp>=2.3.3",
     "openai>=1.75.0",
     "streamlit>=1.44.1",
     "union>=0.1.181",

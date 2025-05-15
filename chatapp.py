@@ -1,15 +1,15 @@
-import tomllib
 import logging
 import os
+import tomllib
 
 from dataclasses import dataclass
+
+import streamlit as st
 from models import get_config, PLACEHOLDER_API_KEY, SpecialMessage
+from openai import OpenAI
 from streamlit_local_storage import LocalStorage
 
 from app_utils import wake_up_endpoints
-
-import streamlit as st
-from openai import OpenAI
 
 
 logging.basicConfig(level=logging.INFO)
@@ -29,6 +29,7 @@ class ClientInfo:
     model_id: str
     endpoint: str
     public_endpoint: str
+    is_external_llm: bool
     max_tokens: int | None = None
     local: bool = False
 
@@ -57,23 +58,33 @@ def load_app_config() -> AppConfig:
     client_infos = {}
     remote_endpoints, headers = [], []
     for i, model_config in enumerate(config.models):
-        endpoint = model_config.get_endpoint(i)
-        public_endpoint = model_config.get_public_endpoint(i)
+        # get endpoint info
+        if model_config.llm_runtime.llm_type == "openai":
+            endpoint = None
+            public_endpoint = None
+            is_external_llm = True
+        else:
+            endpoint = f"{model_config.get_endpoint(i)}/v1"
+            public_endpoint = model_config.get_public_endpoint(i)
+            is_external_llm = False
 
+        # get api key info
         if model_config.local or model_config.llm_runtime.llm_type == "ollama":
             api_key = "ollama"
         else:
-            api_key = os.getenv("UNION_ENDPOINT_SECRET", PLACEHOLDER_API_KEY)
+            api_key_env_var = model_config.get_secret_env_var(i)
+            api_key = os.getenv(api_key_env_var, PLACEHOLDER_API_KEY)
             remote_endpoints.append(endpoint)
             headers.append({"Authorization": f"Bearer {api_key}"})
 
         client_infos[model_config.display_name] = ClientInfo(
-            client=OpenAI(base_url=f"{endpoint}/v1", api_key=api_key),
+            client=OpenAI(base_url=endpoint, api_key=api_key),
             model_id=model_config.model_id,
             endpoint=endpoint,
             public_endpoint=public_endpoint,
-            max_tokens=model_config.max_tokens,
             local=model_config.local,
+            is_external_llm=is_external_llm,
+            max_tokens=model_config.max_tokens,
         )
 
     return AppConfig(
@@ -202,6 +213,36 @@ def display_messages():
         st.empty()
 
 
+def generate_response(
+    client_info: ClientInfo,
+    settings: InferenceSettings,
+):
+    kwargs = dict(
+        temperature=settings.temperature,
+        top_p=settings.top_p,
+    )
+    max_tokens = (
+        settings.max_output_tokens
+        if settings.max_output_tokens is not None
+        else client_info.max_tokens
+    )
+    if max_tokens is not None:
+        kwargs["max_tokens"] = max_tokens
+
+    messages = [
+        {"role": m["role"], "content": m["content"]}
+        for m in st.session_state.messages
+    ]
+
+    stream = client_info.client.chat.completions.create(
+        model=client_info.model_id,
+        messages=messages,
+        stream=True,
+        **kwargs,
+    )
+    return stream
+
+
 def display_current_prompt_and_response(
     prompt: str,
     client_info: ClientInfo,
@@ -212,24 +253,9 @@ def display_current_prompt_and_response(
 
     with st.chat_message("assistant"):
         with st.spinner("Generating response"):
-            stream = client_info.client.chat.completions.create(
-                model=client_info.model_id,
-                messages=[
-                    {"role": "system", "content": "You are a helpful assistant who always answers in English."}
-                ] + [
-                    {"role": m["role"], "content": m["content"]}
-                    for m in st.session_state.messages
-                ],
-                stream=True,
-                max_tokens=(
-                    settings.max_output_tokens
-                    if settings.max_output_tokens is not None
-                    else client_info.max_tokens
-                ),
-                temperature=settings.temperature,
-                top_p=settings.top_p,
-            )
+            stream = generate_response(client_info, settings)
             response = st.write_stream(stream)
+
     st.session_state.messages.append({"role": "assistant", "content": response})
 
 
@@ -311,6 +337,11 @@ def render_model_info(
         ):
             st.markdown("*:gray[Generated content may be inaccurate or false. Please verify the accuracy of the output.]*")
             col1, col2 = st.columns([.25, 1])
+
+            client_info = app_config.client_infos[inference_settings.model]
+            if client_info.is_external_llm:
+                # don't show api access or self-deploy for external llm providers
+                return
 
             with col1:
                 st.button(

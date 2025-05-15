@@ -10,9 +10,9 @@ PLACEHOLDER_API_KEY = "PLACEHOLDER_API_KEY"
 
 @dataclass
 class LLMRuntime:
-    resources: Resources
-    stream_model: bool
     llm_type: str
+    resources: Optional[Resources] = None
+    stream_model: bool = True
     scaledown_after: int = 300
     image: str | None = None
     accelerator: Optional[str] = None
@@ -39,6 +39,9 @@ class Model:
     
     def get_public_endpoint_env_var(self, i: int) -> str:
         return f"PUBLIC_ENDPOINT_{i}"
+
+    def get_secret_env_var(self, i: int) -> str:
+        return f"UNION_ENDPOINT_SECRET_{i}"
 
     def get_endpoint(self, i: int) -> str:
         if self.base_url is not None:
