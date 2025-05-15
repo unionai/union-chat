@@ -5,6 +5,7 @@ import weave
 from fastmcp import Client
 from fastmcp.client.transports import SSETransport
 from openai import OpenAI
+from weave import EvaluationLogger
 from weave.scorers import HallucinationFreeScorer
 
 
@@ -21,6 +22,33 @@ smaller problem with a different tool. ONLY USE ONE TOOL AT A TIME.
 
 The final answer to the user question MUST START WITH "Final answer:"
 """
+
+RELEVANCE_PROMPT = """
+You are a helpful assistant that assesses the relevance of a response to a user question.
+
+The user question is:
+{question}
+
+The response is:
+{response}
+
+Is the response relevant to the question? Output 0 if it is not relevant, and 1 if it is relevant.
+
+Response:
+"""
+
+
+async def assess_relevance(openai_client: OpenAI, model_id: str, messages: list[dict], output: str):
+    response = openai_client.chat.completions.create(
+        model=model_id,
+        messages=[
+            {
+                "role": "user",
+                "content": RELEVANCE_PROMPT.format(question=messages[-1]['content'], response=output),
+            },
+        ],
+    )
+    return response.choices[0].message.content
 
 
 @weave.op()
@@ -46,13 +74,16 @@ async def main(openai_client: OpenAI, mcp_client: Client, model_id: str, message
             print(f"Tool:\n{json.dumps(_tool, indent=2)}")
             available_tools.append(_tool)
 
+        original_prompt = messages[-1]['content']
         _messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
         ] + messages
 
         final_output = None
 
-        for m in _messages: print(m)
+        print("Messages:")
+        for m in _messages:
+            print(m)
 
         while final_output is None:
             response = openai_client.chat.completions.create(
@@ -87,6 +118,21 @@ async def main(openai_client: OpenAI, mcp_client: Client, model_id: str, message
                 print(f"Intermediate message: {message.content}")
 
         print(f"Final answer: {final_output}")
+
+        eval_logger = EvaluationLogger(name="union-chat-eval-harness")
+        relevance = await assess_relevance(openai_client, model_id, messages, final_output)
+        pred_logger = eval_logger.log_prediction(
+            inputs={
+                "original_prompt": original_prompt,
+                "output": final_output,
+            },
+            output=relevance,
+        )
+        pred_logger.log_score(
+            scorer="relevance",
+            score=relevance,
+        )
+
         return final_output
 
 
@@ -97,7 +143,7 @@ if __name__ == "__main__":
     api_key = os.getenv("OPENAI_API_KEY")
     model_id = "o4-mini"
 
-    mcp_client = Client(transport=SSETransport("https://curly-recipe-96d91.apps.demo.hosted.unionai.cloud/sse"))
+    mcp_client = Client(transport=SSETransport(os.getenv("MCP_CLIENT_URL")))
     openai_client = OpenAI(base_url=endpoint, api_key=api_key)
 
     prompt = input("Enter a prompt: ")
