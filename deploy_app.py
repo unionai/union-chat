@@ -31,7 +31,7 @@ def deploy_llm_endpoints(
     seen_env_vars = set()
 
     # Deploy the LLM endpoints
-    app_secrets, app_secret_keys = [], set()
+    app_secrets = []
     for i, model_config in enumerate(config.models):
 
         if model_config.local:
@@ -76,10 +76,7 @@ def deploy_llm_endpoints(
         if model_config.secret_key is not None:
             _secret_arg = model_config.get_secret_env_var(i)
             secret = union.Secret(key=model_config.secret_key, env_var=_secret_arg)
-            if model_config.secret_key not in app_secret_keys:
-                # store these for the streamlit app to use
-                app_secrets.append(secret)
-                app_secret_keys.add(model_config.secret_key)
+            app_secrets.append(secret)
             secrets, secret_arg = [secret], f"${_secret_arg}"
         else:
             secrets = None

@@ -11,10 +11,19 @@ streamlit:
     mem: 3Gi
 
 models:
-  - display_name: Qwen2.5 0.5B
-    model_id: qwen2.5:0.5b
-    base_url: http://localhost:11434
-    local: true
+  - display_name: Qwen2.5 3B
+    name: qwen2-5-3b
+    model_id: qwen2.5:3b
+    llm_runtime:
+      llm_type: ollama
+      resources:
+        cpu: 7
+        mem: 25Gi
+      scaledown_after: 300
+      stream_model: false
+      min_replicas: 1
+    cache_version: v4
+    max_tokens: null
 
   - display_name: Qwen2.5-1.5B
     name: qwen2-5-1-5b

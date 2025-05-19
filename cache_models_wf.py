@@ -254,7 +254,11 @@ def main(config_file: str):
 
     name_to_model_id = {}
     for i, model in enumerate(config.models):
-        if model.local:
+        if (
+            model.local
+            or model.llm_runtime.llm_type == "openai"
+            or model.llm_runtime.llm_type == "ollama"
+        ):
             continue
         var_name = f"hf_repo_{i}"
         name_to_model_id[var_name] = model.model_id
