@@ -1,4 +1,6 @@
-# Union LLM Serving
+# 💬 Union Chat
+
+*A simple UI to chat with self-hosted LLMs, powered by Union.*
 
 ## Setup
 
