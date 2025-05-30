@@ -140,33 +140,9 @@ def deploy_llm_endpoints(
     )
 
 
-def deploy_mcp_app(config: LLMConfig, remote: UnionRemote) -> App:
-    image = union.ImageSpec(
-        name="mcp-server",
-        apt_packages=["git"],
-        packages=["uv", "union-runtime>=0.1.17", "fastmcp"],
-        builder="union",
-    )
-
-    app = App(
-        name="union-mcp-test-1",
-        type="MCP Server",
-        port=8000,
-        include=["mcp_app.py"],
-        container_image=image,
-        args="mcp run mcp_app.py --transport sse",
-        requests=union.Resources(cpu=2, mem="1Gi"),
-        requires_auth=False,
-    )
-
-    remote.deploy_app(app)
-    return app
-
-
 def deploy_streamlit_app(
     config: LLMConfig,
     llm_deployment: LLMDeployment,
-    mcp_app: App,
     remote: UnionRemote,
 ):
 
@@ -191,13 +167,6 @@ def deploy_streamlit_app(
         type="Streamlit",
         container_image=streamlit_image,
         inputs=[
-            Input(
-                name="mcp_server",
-                value=mcp_app.query_endpoint(),
-                env_var="MCP_ENDPOINT",
-                download=False,
-            )
-        ] + [
             Input(
                 name=name,
                 value=llm_app.query_endpoint(),
@@ -245,8 +214,7 @@ def main(config_file: str, model: Optional[str]):
     )
 
     llm_deployment = deploy_llm_endpoints(config, model, remote)
-    mcp_app = deploy_mcp_app(config, remote)
-    deploy_streamlit_app(config, llm_deployment, mcp_app, remote)
+    deploy_streamlit_app(config, llm_deployment, remote)
 
 
 if __name__ == "__main__":
